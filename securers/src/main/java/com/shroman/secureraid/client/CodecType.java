@@ -2,6 +2,7 @@ package com.shroman.secureraid.client;
 
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import com.shroman.secureraid.codec.Codec;
@@ -63,11 +64,13 @@ public enum CodecType {
 	abstract Codec buildCodecFromArgs(String[] args);
 
 	private static void init() {
+		Map<String, CodecType> names = new HashMap<>();
 		for (CodecType codecType : values()) {
 			for (String name : codecType.codecNames) {
-				namesMap.put(name.toUpperCase(), codecType);
+				names.put(name.toUpperCase(), codecType);
 			}
 		}
+		namesMap = names;
 	}
 
 }

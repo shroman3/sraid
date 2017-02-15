@@ -1,13 +1,19 @@
 package com.shroman.secureraid.client;
 
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
+
+import com.shroman.secureraid.common.Message;
+import com.shroman.secureraid.common.Response;
 
 class ServerConnection implements Runnable {
 	private String host;
 	private int port;
-	private byte[] chunk;
+	// private byte[] chunk;
+	private Message message;
+	private Response response;
 
 	ServerConnection(String host, int port) {
 		this.host = host;
@@ -19,11 +25,12 @@ class ServerConnection implements Runnable {
 		Socket socket = null;
 		try {
 			socket = new Socket(host, port);
-			PrintStream ps = new PrintStream(socket.getOutputStream());
+			ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+			ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 			while (true) {
 				try {
-					write(ps);
-				} catch (InterruptedException e) {
+					write(output, input);
+				} catch (InterruptedException | ClassNotFoundException e) {
 					e.printStackTrace();
 				}
 			}
@@ -42,17 +49,23 @@ class ServerConnection implements Runnable {
 		}
 	}
 
-	private synchronized void write(PrintStream ps) throws IOException, InterruptedException {
-		if (chunk != null) {				
-			ps.write(chunk);
-			chunk = null;
+	private synchronized void write(ObjectOutputStream output, ObjectInputStream input)
+			throws IOException, InterruptedException, ClassNotFoundException {
+		if (message != null) {
+			output.writeObject(message);
+			response = (Response) input.readObject();
+			message = null;
 		}
 		wait();
 	}
-	
-	public synchronized void setChunk(byte[] chunk) {
-		this.chunk = chunk;
+
+	public synchronized void setMessage(Message message) {
+		this.message = message;
 		notify();
+	}
+	
+	public synchronized Response getResponse() {
+		return response;
 	}
 
 	@Override
