@@ -90,17 +90,16 @@ public class XMLGetter {
 		};
 	}
 
+	public int getIntField(String section, String field) throws XMLParsingException {
+		Element element = getElement(section, field);
+		return Integer.parseInt(element.getTextContent());
+	}
 	// public String getStringField(String section, String field) throws
 	// XMLParsingException {
 	// Element element = getElement(section, field);
 	// return element.getTextContent();
 	// }
 	//
-	// public int getIntField(String section, String field) throws
-	// XMLParsingException {
-	// Element element = getElement(section, field);
-	// return Integer.parseInt(element.getTextContent());
-	// }
 	//
 	// public Boolean getBooleanField(String section, String field) throws
 	// XMLParsingException {
@@ -158,11 +157,10 @@ public class XMLGetter {
 	// return result;
 	// }
 
-	// private Element getElement(String section, String field) throws
-	// IllegalXMLElement, NoSuchXMLElement {
-	// Element element = getElement(section, dom.getDocumentElement());
-	// return getElement(field, element);
-	// }
+	private Element getElement(String section, String field) throws IllegalXMLElement, NoSuchXMLElement {
+		Element element = getElement(section, dom.getDocumentElement());
+		return getElement(field, element);
+	}
 
 	private static int getIntAttribute(Element element, String attrName) throws XMLParsingException {
 		String attrValue = element.getAttribute(attrName);

@@ -4,27 +4,29 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.UnknownHostException;
 
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.Response;
 
-class ServerConnection implements Runnable {
+class ServerConnection extends Thread {
 	private String host;
 	private int port;
 	// private byte[] chunk;
 	private Message message;
 	private Response response;
+	private Socket socket;
 
-	ServerConnection(String host, int port) {
+	ServerConnection(int clientId, String host, int port) throws UnknownHostException, IOException {
 		this.host = host;
 		this.port = port;
+		socket = new Socket(host, port);
+        socket.getOutputStream().write(clientId);
 	}
 
 	@Override
 	public void run() {
-		Socket socket = null;
 		try {
-			socket = new Socket(host, port);
 			ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
 			ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 			while (true) {

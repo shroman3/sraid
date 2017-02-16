@@ -4,19 +4,24 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.Response;
 import com.shroman.secureraid.common.ResponseType;
 
 public class ClientConnection extends Thread {
-
 	private Socket socket;
 	private int id;
+	private Path clientPath;
 
-	public ClientConnection(Socket socket) throws IOException {
+	public ClientConnection(Path serverPath, Socket socket) throws IOException {
 		this.socket = socket;
         id = socket.getInputStream().read();
+        this.clientPath = Paths.get(serverPath.toString(), Integer.toString(id));
+        Files.createDirectories(clientPath);
 	}
 
 	@Override
@@ -28,7 +33,7 @@ public class ClientConnection extends Thread {
 				Message message = (Message) input.readObject();
 				Response response;
 				try {
-					response = Operation.executeOperation(id, message);
+					response = Operation.executeOperation(clientPath, message);
 				} catch (IOException e) {
 					response = new Response(ResponseType.ERROR, e.getMessage().getBytes());
 					e.printStackTrace();

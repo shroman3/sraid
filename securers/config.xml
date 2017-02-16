@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <root>
+	<client>
+		<id>12</id>
+	</client>
 	<connections>
-		<server host="localhost" port="12300"/>
-		<server host="localhost" port="12301"/>
-		<server host="localhost" port="12302"/>
-		<server host="localhost" port="12303"/>
-		<server host="localhost" port="12304"/>
-		<server host="localhost" port="12305"/>
-		<server host="localhost" port="12306"/>
-		<server host="localhost" port="12307"/>
-		<server host="localhost" port="12308"/>
-		<server host="localhost" port="12309"/>
+		<server host="localhost" port="12300" />
+		<server host="localhost" port="12301" />
+		<server host="localhost" port="12302" />
+		<server host="localhost" port="12303" />
+		<server host="localhost" port="12304" />
+		<server host="localhost" port="12305" />
+		<server host="localhost" port="12306" />
+		<server host="localhost" port="12307" />
+		<server host="localhost" port="12308" />
+		<server host="localhost" port="12309" />
 	</connections>
 </root>

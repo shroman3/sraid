@@ -2,6 +2,7 @@ package com.shroman.secureraid.server;
 
 import java.io.IOException;
 import java.lang.reflect.Modifier;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -16,15 +17,15 @@ public abstract class Operation {
 	private static Map<MessageType, Operation> operationsMap;
 
 	protected abstract MessageType getMessageType();
-	protected abstract Response execute(int id, Message message) throws IOException;
+	protected abstract Response execute(Path executionPath, Message message) throws IOException;
 	
-	public static Response executeOperation(int id, Message message) throws IOException {
+	public static Response executeOperation(Path executionPath, Message message) throws IOException {
 		Operation operation = operationsMap.get(message.getType());
-		return operation.execute(id, message);
+		return operation.execute(executionPath, message);
 	}
-	
+
 	public static void initOperations() {
-		if (operationsMap == null) {			
+		if (operationsMap == null) {
 			Reflections reflections = new Reflections(Operation.class.getPackage().getName());
 			Set<Class<? extends Operation>> subTypes = reflections.getSubTypesOf(Operation.class);
 			
@@ -42,6 +43,7 @@ public abstract class Operation {
 			}
 			validate(operations);
 			operationsMap = operations;
+			
 		}
 	}
 	

@@ -17,8 +17,8 @@ public class WriteObjectOperation extends Operation {
 	}
 
 	@Override
-	protected Response execute(int id, Message message) throws IOException {
-		Path file = Paths.get(id + "/" + message.getId());
+	protected Response execute(Path executionPath, Message message) throws IOException {
+		Path file = Paths.get(executionPath.toString(), Integer.toString(message.getId()));
 		Files.write(file, message.getData());
 		return new Response(ResponseType.OK, null);
 	}

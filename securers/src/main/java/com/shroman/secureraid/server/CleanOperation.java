@@ -1,5 +1,7 @@
 package com.shroman.secureraid.server;
 
+import java.nio.file.Path;
+
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.MessageType;
 import com.shroman.secureraid.common.Response;
@@ -13,7 +15,7 @@ public class CleanOperation extends Operation {
 	}
 
 	@Override
-	protected Response execute(int id, Message message) {
+	protected Response execute(Path executionPath, Message message) {
 		return new Response(ResponseType.OK, null);
 	}
 
