@@ -12,7 +12,7 @@ public abstract class SecureCodec extends Codec {
 		
 
 		public Builder setSecrecyShardsNum(int secrecyShardsNum) {
-			Utils.validateNotNegative(secrecyShardsNum, "secrecy Shards Num");
+			Utils.validatePositive(secrecyShardsNum, "secrecy Shards Num");
 			codec.secrecyShardsNum = secrecyShardsNum;
 			return this;
 		}
@@ -30,6 +30,7 @@ public abstract class SecureCodec extends Codec {
 		}
 		
 		protected void setCodec(SecureCodec codec) {
+			super.setCodec(codec);
 			this.codec = codec;
 		}
 		

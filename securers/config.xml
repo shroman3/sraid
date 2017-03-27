@@ -3,6 +3,7 @@
 <root>
 	<client>
 		<id>12</id>
+		<stripe_size>4</stripe_size><!-- in Megabytes -->
 	</client>
 	<connections>
 		<server host="localhost" port="12300" />

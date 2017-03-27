@@ -29,13 +29,18 @@ public class ClientConnection extends Thread {
 		try {
 			ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 			ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+			Message message = null;
 			while (true) {
-				Message message = (Message) input.readObject();
 				Response response;
 				try {
+					message = (Message) input.readObject();
 					response = Operation.executeOperation(clientPath, message);
 				} catch (IOException e) {
-					response = new Response(ResponseType.ERROR, e.getMessage().getBytes());
+					if (message != null) {						
+						response = new Response(ResponseType.ERROR, e.getMessage().getBytes(), message.getObjectId(), message.getChunkId());
+					} else {
+						response = new Response(ResponseType.ERROR, e.getMessage().getBytes(), -1, -1);
+					}
 					e.printStackTrace();
 				}
 				output.writeObject(response);

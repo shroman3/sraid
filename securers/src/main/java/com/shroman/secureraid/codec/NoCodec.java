@@ -37,7 +37,8 @@ public class NoCodec extends Codec {
 	}
 
 	@Override
-	public void decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
+	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
+		return shards;
 	}
 
 	public Builder getSelfBuilder() {

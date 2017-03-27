@@ -5,8 +5,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.shroman.secureraid.codec.AESCodec;
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.codec.NoCodec;
+import com.shroman.secureraid.codec.RC4Codec;
 import com.shroman.secureraid.codec.SecureBackblazeRS;
 import com.shroman.secureraid.utils.Utils;
 
@@ -41,7 +43,43 @@ public enum CodecType {
 		Codec buildCodecFromArgs(String[] args) {
 			throw new UnsupportedOperationException();
 		}
-	},;
+	},
+	AES("AES256", "AES") {
+		@Override
+		Codec buildCodecFromArgs(String[] args) {
+			Utils.validateArraySize(args, 1, "Arguments");
+			AESCodec.Builder builder = new AESCodec.Builder();
+			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
+			return builder.build();
+		}
+	},
+	AES_RS("AES256RS", "AESRS", "AES_RS") {
+		@Override
+		Codec buildCodecFromArgs(String[] args) {
+			Utils.validateArraySize(args, 2, "Arguments");
+			AESCodec.Builder builder = new AESCodec.Builder();
+			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(Integer.parseInt(args[1]));
+			return builder.build();
+		}
+	},
+	RC4("RC4") {
+		@Override
+		Codec buildCodecFromArgs(String[] args) {
+			Utils.validateArraySize(args, 1, "Arguments");
+			RC4Codec.Builder builder = new RC4Codec.Builder();
+			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
+			return builder.build();
+		}
+	},
+	RC4_RS("RC4RS", "RC4_RS") {
+		@Override
+		Codec buildCodecFromArgs(String[] args) {
+			Utils.validateArraySize(args, 2, "Arguments");
+			RC4Codec.Builder builder = new RC4Codec.Builder();
+			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(Integer.parseInt(args[1]));
+			return builder.build();
+		}
+	};
 	private String[] codecNames;
 
 	private static Map<String, CodecType> namesMap;

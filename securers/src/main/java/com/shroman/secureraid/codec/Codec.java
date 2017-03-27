@@ -51,7 +51,7 @@ public abstract class Codec {
 
 	public abstract byte[][] encode(int shardSize, byte[][] data);
 
-	public abstract void decode(boolean [] shardPresent, byte[][] data, int shardSize);
+	public abstract byte[][] decode(boolean [] shardPresent, byte[][] data, int shardSize);
 
 	public int getSize() {
 		return size;

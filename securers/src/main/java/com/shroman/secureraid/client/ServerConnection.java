@@ -5,6 +5,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.Response;
@@ -12,9 +13,8 @@ import com.shroman.secureraid.common.Response;
 class ServerConnection extends Thread {
 	private String host;
 	private int port;
-	// private byte[] chunk;
-	private Message message;
-	private Response response;
+	private ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
+	private ConcurrentLinkedQueue<Response> responses = new ConcurrentLinkedQueue<>();
 	private Socket socket;
 
 	ServerConnection(int clientId, String host, int port) throws UnknownHostException, IOException {
@@ -32,6 +32,9 @@ class ServerConnection extends Thread {
 			while (true) {
 				try {
 					write(output, input);
+//					synchronized(messages) {						
+//						messages.wait();
+//					}
 				} catch (InterruptedException | ClassNotFoundException e) {
 					e.printStackTrace();
 				}
@@ -51,23 +54,24 @@ class ServerConnection extends Thread {
 		}
 	}
 
-	private synchronized void write(ObjectOutputStream output, ObjectInputStream input)
+	private void write(ObjectOutputStream output, ObjectInputStream input)
 			throws IOException, InterruptedException, ClassNotFoundException {
-		if (message != null) {
+		Message message = null;
+		while ((message = messages.poll()) != null) {
 			output.writeObject(message);
-			response = (Response) input.readObject();
-			message = null;
+			responses.add((Response) input.readObject());
 		}
-		wait();
 	}
 
-	public synchronized void setMessage(Message message) {
-		this.message = message;
-		notify();
+	public void addMessage(Message message) {
+		messages.add(message);
+//		synchronized (messages) {			
+//			notify();
+//		}
 	}
 	
-	public synchronized Response getResponse() {
-		return response;
+	public Response getResponse() {
+		return responses.poll();
 	}
 
 	@Override

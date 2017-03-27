@@ -18,8 +18,8 @@ public class WriteObjectOperation extends Operation {
 
 	@Override
 	protected Response execute(Path executionPath, Message message) throws IOException {
-		Path file = Paths.get(executionPath.toString(), Integer.toString(message.getId()));
+		Path file = Paths.get(executionPath.toString(), message.getObjectId() + "-" + message.getChunkId());
 		Files.write(file, message.getData());
-		return new Response(ResponseType.OK, null);
+		return new Response(ResponseType.OK, null, message.getObjectId(), message.getChunkId());
 	}
 }

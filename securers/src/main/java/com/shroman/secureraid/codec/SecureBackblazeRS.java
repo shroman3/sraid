@@ -60,7 +60,8 @@ public class SecureBackblazeRS extends SecureCodec {
 	}
 
 	@Override
-	public void decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
+	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
+		byte[][] data = new byte[getDataShardsNum()][shardSize];
 		parityRS.decodeMissing(shards, shardPresent, 0, shardSize);
 		final byte[][] secrecyShards = new byte[getSize()][shardSize];
 		// Fill in the data shards
@@ -70,11 +71,13 @@ public class SecureBackblazeRS extends SecureCodec {
 		
 		secrecyRS.encodeParity(secrecyShards, 0, shardSize);
 		// Fill in the data shards
-		for (int i = getSecrecyShardsNum(); i < getDataShardsNum() + getSecrecyShardsNum(); i++) {
+		for (int i = 0; i < getDataShardsNum(); i++) {
+			int afterSecretIndex = i + getSecrecyShardsNum();
 			for (int j = 0; j < shardSize; j++) {
-				shards[i][j] = (byte) (shards[i][j] ^ secrecyShards[i][j]);
+				data[i][j] = (byte) (shards[afterSecretIndex][j] ^ secrecyShards[afterSecretIndex][j]);
 			}
 		}
+		return data;
 	}
 
 	public Builder getSelfBuilder() {
