@@ -10,7 +10,6 @@ import java.nio.file.attribute.BasicFileAttributes;
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.MessageType;
 import com.shroman.secureraid.common.Response;
-import com.shroman.secureraid.common.ResponseType;
 
 public class CleanOperation extends Operation {
 
@@ -35,7 +34,7 @@ public class CleanOperation extends Operation {
         	}
 		});
         
-		return new Response(ResponseType.OK);
+		return null;
 	}
 
 }

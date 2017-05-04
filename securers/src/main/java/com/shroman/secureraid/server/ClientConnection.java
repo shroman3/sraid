@@ -35,6 +35,9 @@ public class ClientConnection extends Thread {
 				try {
 					message = (Message) input.readObject();
 					response = Operation.executeOperation(clientPath, message);
+					if (response == null) {
+						break;
+					}
 				} catch (IOException e) {
 					if (message != null) {						
 						response = new Response(ResponseType.ERROR, e.getMessage().getBytes(), message.getObjectId(), message.getChunkId());

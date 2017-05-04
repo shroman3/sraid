@@ -18,7 +18,7 @@ public class ReadObjectOperation extends Operation {
 
 	@Override
 	protected Response execute(Path executionPath, Message message) throws IOException {
-        Path path = Paths.get(executionPath.toString(), Integer.toString(message.getObjectId()));
+        Path path = Paths.get(executionPath.toString(), message.getObjectId() + "-" + message.getChunkId());
         if(!Files.exists(path)) {
         	return new Response(ResponseType.ERROR, "Input object doesn't exists".getBytes(), message.getObjectId(), message.getChunkId());
         }
