@@ -94,7 +94,7 @@ public class Client implements PushResponseInterface {
 		}
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			for (int j = 0; j < codec.getSize(); j++) {
-				servers.get(j).addMessage(new Message(MessageType.READ_OBJECT, null, item.getId(), i));
+				servers.get(j).addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
 	}
@@ -161,7 +161,7 @@ public class Client implements PushResponseInterface {
 	
 	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
 		for (int i = 0; i < encodedShards.length; i++) {
-			servers.get((i + objectId + chunkId)%codec.getSize()).addMessage(new Message(MessageType.WRITE_OBJECT, encodedShards[i], objectId, chunkId));
+			servers.get((i + objectId + chunkId)%codec.getSize()).addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
 		}
 	}
 

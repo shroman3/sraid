@@ -8,6 +8,10 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.log4j.Logger;
+import org.perf4j.StopWatch;
+import org.perf4j.log4j.Log4JStopWatch;
+
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.Response;
 
@@ -15,10 +19,10 @@ class ServerConnection extends Thread {
 	private String host;
 	private int port;
 	private ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
-	private ConcurrentLinkedQueue<Response> responses = new ConcurrentLinkedQueue<>();
 	private Socket socket;
 	private int serverId;
 	private PushResponseInterface pushResponse;
+	private Logger logger;
 
 	ServerConnection(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse) throws UnknownHostException, IOException {
 		this.serverId = serverId;
@@ -27,6 +31,8 @@ class ServerConnection extends Thread {
 		this.pushResponse = pushResponse;
 		socket = new Socket(host, port);
         socket.getOutputStream().write(clientId);
+		logger = Logger.getLogger("ServerConnection"+serverId);
+		logger.info("Hots:" + host + " port:" + port);
 	}
 
 	@Override
@@ -66,10 +72,14 @@ class ServerConnection extends Thread {
 			throws IOException, InterruptedException, ClassNotFoundException {
 		Message message = null;
 		while ((message = messages.poll()) != null) {
+			StopWatch stopWatch = new Log4JStopWatch(message.toString(), logger);
 			output.writeObject(message);
 			Object readObject = input.readObject();
 			Response response = (Response) readObject;
-			responses.add(response);
+			stopWatch.stop();
+			if (!response.isSuccess()) {
+				System.err.println("something wrong");
+			}
 			pushResponse.push(response, serverId);
 		}
 	}

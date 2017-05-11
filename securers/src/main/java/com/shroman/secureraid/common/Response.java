@@ -19,6 +19,9 @@ public class Response implements Serializable {
 	
 	public Response(ResponseType type) {
 		this.type = type;
+		if (type == ResponseType.ERROR) {
+			System.err.println("something went wrong");
+		}
 	}
 
 	public boolean isSuccess() {

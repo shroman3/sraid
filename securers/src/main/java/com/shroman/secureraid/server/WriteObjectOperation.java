@@ -13,7 +13,7 @@ import com.shroman.secureraid.common.ResponseType;
 public class WriteObjectOperation extends Operation {
 	@Override
 	protected MessageType getMessageType() {
-		return MessageType.WRITE_OBJECT;
+		return MessageType.WRITE;
 	}
 
 	@Override

@@ -37,4 +37,9 @@ public class Message implements Serializable {
 	public int getChunkId() {
 		return chunkId;
 	}
+
+	@Override
+	public String toString() {
+		return new StringBuilder().append(type).append(",").append(objectId).append(",").append(chunkId).toString();
+	}
 }

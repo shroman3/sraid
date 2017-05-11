@@ -13,7 +13,7 @@ import com.shroman.secureraid.common.ResponseType;
 public class ReadObjectOperation extends Operation {
 	@Override
 	protected MessageType getMessageType() {
-		return MessageType.READ_OBJECT;
+		return MessageType.READ;
 	}
 
 	@Override
