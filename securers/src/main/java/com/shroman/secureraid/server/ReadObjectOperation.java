@@ -22,6 +22,6 @@ public class ReadObjectOperation extends Operation {
         if(!Files.exists(path)) {
         	return new Response(ResponseType.ERROR, "Input object doesn't exists".getBytes(), message.getObjectId(), message.getChunkId());
         }
-        return new Response(ResponseType.OK ,Files.readAllBytes(path), message.getObjectId(), message.getChunkId());
+        return new Response(ResponseType.READ ,Files.readAllBytes(path), message.getObjectId(), message.getChunkId());
 	}
 }

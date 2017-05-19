@@ -1,5 +1,12 @@
 package com.shroman.secureraid.client;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -14,6 +21,7 @@ import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.common.Response;
 
 public class ReadClient extends Thread implements PushResponseInterface {
+	private static final String CHECKSUMS_FILENAME = "checksums.ser";
 	private static final int N_THREADS = 2;
 	private Codec codec;
 	private Map<Integer, long[]> checksumMap = new ConcurrentHashMap<>();
@@ -66,6 +74,21 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	
 	void addChecksum(int stripeId, final int itemId, byte[][] dataShards) {
 		checksumMap.put(calcChunkId(itemId, stripeId), calcChecksum(dataShards));
+	}
+	
+	void saveChecksums() throws FileNotFoundException, IOException {
+		File outputFile = new File(CHECKSUMS_FILENAME);
+		ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(outputFile));
+		out.writeObject(checksumMap);
+		out.close();
+	}
+	
+	@SuppressWarnings("unchecked")
+	void loadChecksums() throws FileNotFoundException, IOException, ClassNotFoundException {
+		File inputFile = new File(CHECKSUMS_FILENAME);
+		ObjectInputStream in = new ObjectInputStream(new FileInputStream(inputFile));
+		checksumMap = (Map<Integer, long[]>) in.readObject();
+		in.close();
 	}
 	
 	@Override
@@ -122,51 +145,6 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private int calcChunkId(int itemId, int stripeId) {
 		return (itemId << 10) + stripeId;
 	}
-	
-	
-//	private void completeRead(Map<Integer, byte[][]> readMap, int shouldPresent) throws IOException {
-//		Set<Integer> finished = new HashSet<Integer>();
-//		for (Entry<Integer, byte[][]> entry : readMap.entrySet()) {
-//			
-//			int decodedNum = 0;
-//			for (int i = 0; i < entry.getValue().length; i++) {
-//				if (decoded[i] != null) {
-//					++decodedNum;
-//				} else {
-//					byte[][] stripe = entry.getValue()[i];
-//					int present = 0;
-//					boolean[] shardPresent = new boolean[codec.getSize()];
-//					for (int j = 0; j < stripe.length; ++j) {
-//						if(shardPresent[j] = (stripe[j] != null)) {
-//							++present;
-//						}
-//					}
-//					
-//					if (present == shouldPresent) {
-//						decoded[i] = codec.decode(shardPresent, stripe, stripe[0].length);
-//						++decodedNum;
-//					}
-//				}
-//			}
-//			if (decodedNum == decoded.length) {
-//				writeFile(entry.getKey() + ".out", decoded);
-//				finished.add(entry.getKey());
-//			}
-//		}
-//		for (Integer id : finished) {
-//			readMap.remove(id);
-//		}
-//	}
-	
-//	private void writeFile(String fileName, byte[][][] decoded) throws IOException {
-//		OutputStream out = new FileOutputStream(fileName);
-//		for (int i = 0; i < decoded.length; i++) {
-//			for (int j = 0; j < decoded[i].length; j++) {
-//				out.write(decoded[i][j]);
-//			}
-//		}
-//		out.close();
-//	}
 
 	private long[] calcChecksum(byte[][] dataShards) {
 		CRC32 crc = new CRC32();

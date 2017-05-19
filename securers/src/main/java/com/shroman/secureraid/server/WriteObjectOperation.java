@@ -20,6 +20,6 @@ public class WriteObjectOperation extends Operation {
 	protected Response execute(Path executionPath, Message message) throws IOException {
 		Path file = Paths.get(executionPath.toString(), message.getObjectId() + "-" + message.getChunkId());
 		Files.write(file, message.getData());
-		return new Response(ResponseType.OK, null, message.getObjectId(), message.getChunkId());
+		return new Response(ResponseType.WRITE, null, message.getObjectId(), message.getChunkId());
 	}
 }

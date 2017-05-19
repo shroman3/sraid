@@ -4,7 +4,9 @@ import java.io.Serializable;
 
 public class Message implements Serializable {
 	private static final long serialVersionUID = -8934948984810922669L;
-
+	
+	public static final Message KILL = new Message(MessageType.KILL);
+	
 	private MessageType type;
 	int objectId = -1;
 	private int chunkId = -1;

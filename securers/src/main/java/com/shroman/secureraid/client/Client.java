@@ -152,9 +152,9 @@ public class Client implements PushResponseInterface {
 			return false;
 		}
 		String[] operationArgs = operationLine.split(" ");
-		OperationType operation = OperationType.getOperationByName(operationArgs[0]);
+//		OperationType operation = OperationType.getOperationByName(operationArgs[0]);
 		
-		operation.run(operationArgs, this);
+//		operation.run(operationArgs, this);
 		
 		return true;
 	}

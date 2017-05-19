@@ -1,8 +1,12 @@
 package com.shroman.secureraid.client;
 
+import java.io.Serializable;
+
 import com.shroman.secureraid.utils.Utils;
 
-public class Item {
+public class Item implements Serializable {
+	private static final long serialVersionUID = 4387791406024007482L;
+
 	public static class Builder {
 		private Item item;
 

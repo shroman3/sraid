@@ -3,29 +3,98 @@ package com.shroman.secureraid.client;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 public enum OperationType {
-	WRITE("W") {
-
+	WRITE("W", "WRITE") {
 		@Override
-		public void run(String[] operationArgs, Client client) throws IOException {
-			client.encodeFile(operationArgs[1]);
+		void initOperation(WriteClient client) {
+		}
+		
+		@Override
+		void run(String fileName, WriteClient client) throws IOException {
+			client.encodeFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException, IOException {
+			client.finalizeWriter();
 		}
 	},
-	READ("R") {
+	READ("R", "READ") {
+		@Override
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException {
+			client.initReader();
+		}
+		
+		@Override
+		void run(String fileName, WriteClient client) throws IOException {
+			client.readFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
+			client.finalizeReader();
+		}
+	},
+	DEG_READ("DR", "DEG", "DEGREAD", "DR1", "DEG1", "DEGREAD1") {
+		@Override
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException {
+			client.initReader();
+		}
+		
+		@Override
+		public void run(String fileName, WriteClient client) throws IOException {
+			client.degReadFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
+			client.finalizeReader();
+		}
+	},
+	DEG_READ2("DR2", "DEG2", "DEGREAD2") {
+		@Override
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException {
+			client.initReader();			
+		}
 
 		@Override
-		public void run(String[] operationArgs, Client client) {
-			client.readFile(operationArgs[1]);
+		public void run(String fileName, WriteClient client) throws IOException {
+			client.deg2ReadFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
+			client.finalizeReader();
+		}
+	},
+	CLEAN("C", "CLEAN") {
+		@Override
+		public void run(Scanner inputFileScanner, WriteClient client) throws IOException {
+			client.clean();
+		}
+
+		@Override
+		void initOperation(WriteClient client) {
+		}
+		
+		@Override
+		public void run(String fileName, WriteClient client) throws IOException {
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
 		}
 	};
-
-	private static Map<String, OperationType> operationsMap = initializeMap();
-
-	private String operationName;
 	
-	private OperationType(String operationName) {
-		this.operationName = operationName.toUpperCase();
+
+	private static Map<String, OperationType> operationsMap = buildOperationsNameMap();
+
+	private String[] operationNames;
+	
+	private OperationType(String ... operationName) {
+		this.operationNames = operationName;
 	}
 
 	public static OperationType getOperationByName(String operationName) {
@@ -36,13 +105,26 @@ public enum OperationType {
 		return operationType;
 	}
 	
-	private static Map<String, OperationType> initializeMap() {
+	private static Map<String, OperationType> buildOperationsNameMap() {
 		Map<String, OperationType> map = new HashMap<>();
 		for (OperationType operationType : values()) {
-			map.put(operationType.operationName, operationType);
+			for (String name : operationType.operationNames) {
+				map.put(name, operationType);
+			}
 		}
 		return map;
 	}
 
-	public abstract void run(String[] operationArgs, Client client) throws IOException;
+	void run(Scanner inputFileScanner, WriteClient client) throws IOException, InterruptedException, ClassNotFoundException {
+		initOperation(client);
+		while (inputFileScanner.hasNextLine()) {
+			String operationLine = inputFileScanner.nextLine().toLowerCase();
+			run(operationLine, client);
+		}
+		finalizeOperation(client);
+	}
+	
+	abstract void run(String fileName, WriteClient client) throws IOException;
+	abstract void initOperation(WriteClient client) throws ClassNotFoundException, IOException;
+	abstract void finalizeOperation(WriteClient client) throws InterruptedException, IOException;
 }

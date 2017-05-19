@@ -4,4 +4,5 @@ public enum MessageType {
 	WRITE,
 	READ,
 	CLEAN,
+	KILL,
 }

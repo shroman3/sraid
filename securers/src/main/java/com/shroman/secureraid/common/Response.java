@@ -25,7 +25,7 @@ public class Response implements Serializable {
 	}
 
 	public boolean isSuccess() {
-		return type == ResponseType.OK;
+		return type != ResponseType.ERROR;
 	}
 	
 	public String getErrorMessage() {
@@ -42,5 +42,10 @@ public class Response implements Serializable {
 	
 	public int getChunkId() {
 		return chunkId;
+	}
+
+	@Override
+	public String toString() {
+		return new StringBuilder().append(type).append(",").append(objectId).append(",").append(chunkId).toString();
 	}
 }

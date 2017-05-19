@@ -23,6 +23,7 @@ class ServerConnection extends Thread {
 	private int serverId;
 	private PushResponseInterface pushResponse;
 	private Logger logger;
+	private boolean die = false;
 
 	ServerConnection(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse) throws UnknownHostException, IOException {
 		this.serverId = serverId;
@@ -31,6 +32,7 @@ class ServerConnection extends Thread {
 		this.pushResponse = pushResponse;
 		socket = new Socket(host, port);
         socket.getOutputStream().write(clientId);
+        socket.getOutputStream().write(serverId);
 		logger = Logger.getLogger("ServerConnection"+serverId);
 		logger.info("Hots:" + host + " port:" + port);
 	}
@@ -42,7 +44,7 @@ class ServerConnection extends Thread {
 		try {
 			output = new ObjectOutputStream(socket.getOutputStream());
 			input = new ObjectInputStream(socket.getInputStream());
-			while (true) {
+			while (!die) {
 				try {
 					write(output, input);
 				} catch (InterruptedException | ClassNotFoundException e) {
@@ -68,12 +70,28 @@ class ServerConnection extends Thread {
 		}
 	}
 
+	public void addMessage(Message message) {
+		messages.add(message);
+	}
+	
+	@Override
+	public String toString() {
+		return host + "::" + port;
+	}
+
 	private void write(ObjectOutputStream output, ObjectInputStream input)
 			throws IOException, InterruptedException, ClassNotFoundException {
 		Message message = null;
 		while ((message = messages.poll()) != null) {
-			StopWatch stopWatch = new Log4JStopWatch(message.toString(), logger);
+			if (message == Message.KILL) {
+				die = true;
+				return;
+			}
+			String messageTag = message.toString();
+			StopWatch stopWatch = new Log4JStopWatch(messageTag, "SEND", logger);
 			output.writeObject(message);
+			stopWatch.stop();
+			stopWatch.start(messageTag, "RECIEVE");
 			Object readObject = input.readObject();
 			Response response = (Response) readObject;
 			stopWatch.stop();
@@ -82,14 +100,5 @@ class ServerConnection extends Thread {
 			}
 			pushResponse.push(response, serverId);
 		}
-	}
-
-	public void addMessage(Message message) {
-		messages.add(message);
-	}
-	
-	@Override
-	public String toString() {
-		return host + "::" + port;
 	}
 }

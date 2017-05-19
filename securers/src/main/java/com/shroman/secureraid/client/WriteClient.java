@@ -3,10 +3,14 @@ package com.shroman.secureraid.client;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -31,12 +35,12 @@ import com.shroman.secureraid.utils.XMLGetter.Getter;
 import com.shroman.secureraid.utils.XMLParsingException;
 
 public class WriteClient {
+	private static final String ITEMS_FILENAME = "items.ser";
 	private static final String CONFIG_XML = "config.xml";
 	private static final int BYTES_IN_MEGABYTE = 1048576;
 	private static final int N_THREADS = 2;
 	private List<ServerConnection> servers = new ArrayList<>();
-	private Map<String, Item> fileSizes = new HashMap<>();
-	// private Map<Integer, byte[][][]> readMap = new HashMap<>();
+	private Map<String, Item> itemsMap = new HashMap<>();
 	private int itemIdGenerator = 0;
 	private int clientId;
 	private int stripeSize;
@@ -45,21 +49,16 @@ public class WriteClient {
 	private ExecutorService executer;
 	private ReadClient reader;
 	private Logger logger;
+	private OperationType operation;
 
 	public static void main(String[] args) {
-		// PropertyConfigurator.configure(Client.class.getResource("/log4j.properties"));
 		Scanner inputFileScanner = null;
 		try {
 			WriteClient client = new WriteClient(args);
 			inputFileScanner = new Scanner(new FileInputStream("input.txt"));
 			// inputFileScanner = new Scanner(System.in);
 			try {
-				client.write(inputFileScanner);
-
-				client.read(inputFileScanner);
-				client.degread1(inputFileScanner);
-				client.degread2(inputFileScanner);
-				client.sendClean();
+				client.run(inputFileScanner);
 			} catch (Exception e) {
 				System.out.println("Something went wrong: " + e.getMessage());
 			}
@@ -72,72 +71,78 @@ public class WriteClient {
 		}
 	}
 
-	private void write(Scanner inputFileScanner) throws IOException, InterruptedException {
-		while (inputFileScanner.hasNextLine()) {
-			String operationLine = inputFileScanner.nextLine().toLowerCase();
-			if ("read".equals(operationLine)) {
-				break;
-			}
-			encodeFile(operationLine);
-		}
-		executer.shutdown();
-		executer.awaitTermination(10, TimeUnit.MINUTES);
-	}
-
-	private boolean read(Scanner inputFileScanner) throws IOException {
-		reader.start();
-		while (inputFileScanner.hasNextLine()) {
-			String operationLine = inputFileScanner.nextLine().toLowerCase();
-			if ("degread1".equals(operationLine)) {
-				break;
-			}
-			readFile(operationLine);
-		}
-		return false;
-	}
-
-	private boolean degread1(Scanner inputFileScanner) throws IOException {
-		while (inputFileScanner.hasNextLine()) {
-			String operationLine = inputFileScanner.nextLine().toLowerCase();
-			switch (operationLine) {
-			case ("degread2"):
-				return false;
-			default:
-				readFile(operationLine);
-			}
-		}
-		return false;
-	}
-
-	private boolean degread2(Scanner inputFileScanner) throws IOException {
-		while (inputFileScanner.hasNextLine()) {
-			String operationLine = inputFileScanner.nextLine().toLowerCase();
-			switch (operationLine) {
-			case ("exit"):
-				return false;
-			default:
-				readFile(operationLine);
-			}
-		}
-		return false;
-	}
-
-	private WriteClient(String[] args)
-			throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {
+	private WriteClient(String[] args) throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {	
 		XMLGetter xmlGetter = new XMLGetter(CONFIG_XML);
 		logger = Logger.getLogger("Encode");
 
 		clientId = xmlGetter.getIntField("client", "id");
 		stripeSize = xmlGetter.getIntField("client", "stripe_size") * BYTES_IN_MEGABYTE;
-		codec = CodecType.getCodecFromArgs(args);
+		codec = CodecType.getCodecFromArgs(Arrays.copyOfRange(args, 1, args.length));
 		shardSize = stripeSize / codec.getDataShardsNum();
 		executer = Executors.newFixedThreadPool(N_THREADS);
 		reader = new ReadClient(codec);
 		initServerConnections(xmlGetter, codec.getSize());
+		operation = OperationType.getOperationByName(args[0]);		
+	}
+	
+	void initReader() throws ClassNotFoundException, IOException {
+		loadItemsMap();
+		reader.loadChecksums();
+		reader.start();
+	}
+
+	void finalizeWriter() throws InterruptedException, IOException {
+		executer.shutdown();
+		executer.awaitTermination(10, TimeUnit.MINUTES);
+		reader.saveChecksums();
+		saveItemsMap();
+		finalizeServerConnections();
+	}
+	
+	private void saveItemsMap() throws IOException {
+		File outputFile = new File(ITEMS_FILENAME);
+		ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(outputFile));
+		out.writeObject(itemsMap);
+		out.close();
+	}
+	
+	@SuppressWarnings("unchecked")
+	private void loadItemsMap() throws IOException, ClassNotFoundException {
+		File inputFile = new File(ITEMS_FILENAME);
+		ObjectInputStream in = new ObjectInputStream(new FileInputStream(inputFile));
+		itemsMap = (Map<String, Item>) in.readObject();
+		in.close();
+	}
+
+	void finalizeReader() {
+		reader.die();
+		finalizeServerConnections();
+	}
+
+	void degReadFile(String fileName) {
+		Item item = itemsMap.get(fileName);
+		reader.readFile(item);
+		for (int i = 0; i < item.getStripesNumber(); i++) {
+			for (int j = 1; j < codec.getSize() - codec.getParityShardsNum()+1; j++) {
+				servers.get((j + i + item.getId()) % codec.getSize())
+				.addMessage(new Message(MessageType.READ, null, item.getId(), i));
+			}
+		}
+	}
+
+	void deg2ReadFile(String fileName) {
+		Item item = itemsMap.get(fileName);
+		reader.readFile(item);
+		for (int i = 0; i < item.getStripesNumber(); i++) {
+			for (int j = 2; j < codec.getSize() - codec.getParityShardsNum(); j++) {
+				servers.get((j + i + item.getId()) % codec.getSize())
+				.addMessage(new Message(MessageType.READ, null, item.getId(), i));
+			}
+		}
 	}
 
 	void readFile(String fileName) {
-		Item item = fileSizes.get(fileName);
+		Item item = itemsMap.get(fileName);
 		reader.readFile(item);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			for (int j = 0; j < codec.getSize() - codec.getParityShardsNum(); j++) {
@@ -150,7 +155,7 @@ public class WriteClient {
 	void encodeFile(String fileName) throws IOException {
 		InputStream in = null;
 		try {
-			if (fileSizes.containsKey(fileName)) {
+			if (itemsMap.containsKey(fileName)) {
 				throw new IllegalArgumentException("File allready writen: " + fileName);
 			}
 			File inputFile = new File(fileName);
@@ -177,7 +182,7 @@ public class WriteClient {
 				throw new IOException("not enough bytes read");
 			}
 
-			fileSizes.put(fileName,
+			itemsMap.put(fileName,
 					new Item.Builder().setFileSize(fileSize).setId(itemIdGenerator).setStripesNumber(stripes).build());
 
 		} catch (Exception e) {
@@ -191,35 +196,16 @@ public class WriteClient {
 		}
 	}
 
-	// private boolean parseNextLine(Scanner inputFileScanner) throws
-	// IOException {
-	// if (!inputFileScanner.hasNextLine()) {
-	// return false;
-	// }
-	// String operationLine = inputFileScanner.nextLine();
-	// if (operationLine.toLowerCase().equals("exit")) {
-	// return false;
-	// }
-	// String[] operationArgs = operationLine.split(" ");
-	// OperationType operation =
-	// OperationType.getOperationByName(operationArgs[0]);
-	//
-	//// operation.run(operationArgs, this);
-	//
-	// return true;
-	// }
+	void clean() {
+		for (int i = 0; i < codec.getSize(); i++) {
+			servers.get(i).addMessage(new Message(MessageType.CLEAN));
+		}
+	}
 
 	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
 		for (int i = 0; i < encodedShards.length; i++) {
 			servers.get((i + objectId + chunkId) % codec.getSize())
 					.addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
-		}
-	}
-
-	private void sendClean() throws IOException {
-		reader.die();
-		for (int i = 0; i < codec.getSize(); i++) {
-			servers.get(i).addMessage(new Message(MessageType.CLEAN));
 		}
 	}
 
@@ -259,6 +245,16 @@ public class WriteClient {
 			}
 		});
 		return bytesRead;
+	}
+
+	private void run(Scanner inputFileScanner) throws IOException, InterruptedException, ClassNotFoundException {
+		operation.run(inputFileScanner, this);
+	}
+
+	private void finalizeServerConnections() {
+		for (int i = 0; i < codec.getSize(); i++) {
+			servers.get(i).addMessage(Message.KILL);
+		}
 	}
 
 	private static FileInputStream getInputStream(File inputFile) throws FileNotFoundException {
