@@ -82,7 +82,7 @@ public class WriteClient {
 		executer = Executors.newFixedThreadPool(N_THREADS);
 		reader = new ReadClient(codec);
 		initServerConnections(xmlGetter, codec.getSize());
-		operation = OperationType.getOperationByName(args[0]);		
+		operation = OperationType.getOperationByName(args[0]);
 	}
 	
 	void initReader() throws ClassNotFoundException, IOException {
@@ -146,7 +146,8 @@ public class WriteClient {
 		reader.readFile(item);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			for (int j = 0; j < codec.getSize() - codec.getParityShardsNum(); j++) {
-				servers.get((j + i + item.getId()) % codec.getSize())
+				int serverId = (j + i + item.getId()) % codec.getSize();
+				servers.get(serverId)
 				.addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
@@ -204,7 +205,8 @@ public class WriteClient {
 
 	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
 		for (int i = 0; i < encodedShards.length; i++) {
-			servers.get((i + objectId + chunkId) % codec.getSize())
+			int serverId = (i + objectId + chunkId) % codec.getSize();
+			servers.get(serverId)
 					.addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
 		}
 	}

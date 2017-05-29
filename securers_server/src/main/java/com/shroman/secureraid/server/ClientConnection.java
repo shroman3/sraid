@@ -28,8 +28,9 @@ public class ClientConnection extends Thread {
 		this.socket = socket;
 		id = socket.getInputStream().read();
 		serverId = socket.getInputStream().read();
-		logger = Logger.getLogger("ClientConnection" + serverId);
-		this.clientPath = Paths.get(serverPath.toString(), Integer.toString(id));
+		logger = Logger.getLogger("ClientConnection");
+		logger.info("Connected with server id: " + serverId);
+		this.clientPath = Paths.get(serverPath.toString(), Integer.toString(id));	
 		Files.createDirectories(clientPath);
 	}
 

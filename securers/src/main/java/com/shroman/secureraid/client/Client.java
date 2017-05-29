@@ -151,7 +151,7 @@ public class Client implements PushResponseInterface {
 		if (operationLine.toLowerCase().equals("exit")) {
 			return false;
 		}
-		String[] operationArgs = operationLine.split(" ");
+//		String[] operationArgs = operationLine.split(" ");
 //		OperationType operation = OperationType.getOperationByName(operationArgs[0]);
 		
 //		operation.run(operationArgs, this);

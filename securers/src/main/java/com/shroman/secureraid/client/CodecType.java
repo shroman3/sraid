@@ -47,7 +47,7 @@ public enum CodecType {
 	AES("AES256", "AES") {
 		@Override
 		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 1, "Arguments");
+			Utils.validateArraySize(args, 2, "Arguments");
 			AESCodec.Builder builder = new AESCodec.Builder();
 			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
 			return builder.build();
@@ -56,7 +56,7 @@ public enum CodecType {
 	AES_RS("AES256RS", "AESRS", "AES_RS") {
 		@Override
 		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 2, "Arguments");
+			Utils.validateArraySize(args, 3, "Arguments");
 			AESCodec.Builder builder = new AESCodec.Builder();
 			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(Integer.parseInt(args[1]));
 			return builder.build();

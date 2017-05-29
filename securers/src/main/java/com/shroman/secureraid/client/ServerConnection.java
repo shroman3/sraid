@@ -34,7 +34,7 @@ class ServerConnection extends Thread {
         socket.getOutputStream().write(clientId);
         socket.getOutputStream().write(serverId);
 		logger = Logger.getLogger("ServerConnection"+serverId);
-		logger.info("Hots:" + host + " port:" + port);
+		logger.info("Hots:" + host + " port:" + port + " serever id: " + serverId);
 	}
 
 	@Override

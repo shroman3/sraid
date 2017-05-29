@@ -2,12 +2,12 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.shroman.secureraid</groupId>
-	<artifactId>securers_client</artifactId>
+	<groupId>com.shroman.secureraid.server</groupId>
+	<artifactId>securers_server</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>securers_client</name>
+	<name>securers_server</name>
 	<url>http://maven.apache.org</url>
 
 	<properties>
@@ -15,7 +15,7 @@
 		<maven.compiler.source>1.8</maven.compiler.source>
 		<maven.compiler.target>1.8</maven.compiler.target>
 	</properties>
-
+	
 	<build>
 		<plugins>
 			<plugin>
@@ -25,7 +25,7 @@
 					<archive>
 						<manifestEntries>
 							<addClasspath>true</addClasspath>
-							<Main-Class>com.shroman.secureraid.client.WriteClient</Main-Class>
+							<Main-Class>com.shroman.secureraid.server.Server</Main-Class>
 						</manifestEntries>
 					</archive>
 				</configuration>
@@ -62,12 +62,6 @@
 			<groupId>org.perf4j</groupId>
 			<artifactId>perf4j</artifactId>
 			<version>0.9.16</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on -->
-		<dependency>
-			<groupId>org.bouncycastle</groupId>
-			<artifactId>bcprov-jdk15on</artifactId>
-			<version>1.56</version>
 		</dependency>
 	</dependencies>
 </project>

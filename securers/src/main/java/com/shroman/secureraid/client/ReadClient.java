@@ -26,7 +26,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private Codec codec;
 	private Map<Integer, long[]> checksumMap = new ConcurrentHashMap<>();
 	private Map<Integer, byte[][]> readMap = new ConcurrentHashMap<>();
-	private Map<Integer, Integer> chunksSet = new ConcurrentHashMap<>();
+	private Map<Integer, Integer> chunksMap = new ConcurrentHashMap<>();
 	private Integer mutex = -1;
 	private boolean die = false;
 	private ExecutorService executer;
@@ -43,14 +43,15 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	public void push(Response response, int serverId) {
 		if (response.isSuccess() && response.getData() != null) {
 			synchronized (mutex) {
-				int chunkId = calcChunkId(response.getObjectId(), response.getChunkId());
-				byte[][] responses = readMap.get(chunkId);
-				responses[(response.getChunkId() + response.getObjectId() + serverId)%codec.getSize()] = response.getData();
-				Integer chunksNum = chunksSet.get(chunkId);
+				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
+				byte[][] responses = readMap.get(stripeId);
+				int chunkId = (((serverId - response.getChunkId() - response.getObjectId())%codec.getSize()) + codec.getSize())%codec.getSize();
+				responses[chunkId] = response.getData();
+				Integer chunksNum = chunksMap.get(stripeId);
 				if (chunksNum == null) {
-					chunksSet.put(chunkId, 1);
+					chunksMap.put(stripeId, 1);
 				} else {
-					chunksSet.put(chunkId, chunksNum + 1);
+					chunksMap.put(stripeId, chunksNum + 1);
 				}
 				mutex.notifyAll();
 			}
@@ -60,7 +61,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	void readFile(Item item) {
 		if (item != null) {
 			for (int i = 0; i < item.getStripesNumber(); i++) {
-				readMap.put(calcChunkId(item.getId(), i), new byte[codec.getSize()][]);
+				readMap.put(calcStripeId(item.getId(), i), new byte[codec.getSize()][]);
 			}
 		}
 	}
@@ -73,7 +74,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	}
 	
 	void addChecksum(int stripeId, final int itemId, byte[][] dataShards) {
-		checksumMap.put(calcChunkId(itemId, stripeId), calcChecksum(dataShards));
+		checksumMap.put(calcStripeId(itemId, stripeId), calcChecksum(dataShards));
 	}
 	
 	void saveChecksums() throws FileNotFoundException, IOException {
@@ -101,7 +102,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				chunksSet.entrySet().removeIf(e -> isStripeReady(e.getKey(), e.getValue()));
+				chunksMap.entrySet().removeIf(e -> isStripeReady(e.getKey(), e.getValue()));
 			}
 			executer.shutdown();
 		}
@@ -138,11 +139,14 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		boolean[] shardPresent = new boolean[codec.getSize()];
 		for (int j = 0; j < codec.getSize(); ++j) {
 			shardPresent[j] = (chunks[j] != null);
+			if (!shardPresent[j]) {
+				chunks[j] = new byte[chunks[0].length];
+			}
 		}
 		return shardPresent;
 	}
 	
-	private int calcChunkId(int itemId, int stripeId) {
+	private int calcStripeId(int itemId, int stripeId) {
 		return (itemId << 10) + stripeId;
 	}
 
