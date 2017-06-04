@@ -8,8 +8,6 @@ import org.bouncycastle.crypto.digests.MD5Digest;
 import org.bouncycastle.crypto.engines.RC4Engine;
 import org.bouncycastle.crypto.params.KeyParameter;
 
-import com.backblaze.erasure.ReedSolomon;
-
 public class RC4Codec extends CryptoCodec {
 	public static class Builder extends CryptoCodec.Builder {
 		private RC4Codec codec;
@@ -39,8 +37,9 @@ public class RC4Codec extends CryptoCodec {
 		}
 	}
 
-	private RC4Engine encrypt = null;
-	private RC4Engine decrypt = null;
+//	private RC4Engine encrypt = null;
+//	private RC4Engine decrypt = null;
+	private CipherParameters cipherParameters;
 
 
 	RC4Codec() {
@@ -48,27 +47,14 @@ public class RC4Codec extends CryptoCodec {
 
 	RC4Codec(RC4Codec other) {
 		super(other);
-		CipherParameters cipherParameters = new KeyParameter(getKey());
-
-		encrypt = new RC4Engine();
-        encrypt.init(true, cipherParameters);
-
-        decrypt = new RC4Engine();
-        decrypt.init(false, cipherParameters);
+		cipherParameters = new KeyParameter(getKey());
 	}
 
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
 		try {
 			byte[][] encrypt = encrypt(data);
-			ReedSolomon parityRS = getParityRS();
-			if (parityRS == null) {
-				return encrypt;
-			}
-			byte[][] shards = new byte[getSize()][shardSize];
-			
-			parityRS.encodeParity(shards, 0, shardSize);
-			return shards;
+			return encodeRS(encrypt);
 		} catch (InvalidCipherTextException e) {
 			e.printStackTrace();
 			throw new RuntimeCryptoException(e.getMessage());
@@ -77,10 +63,7 @@ public class RC4Codec extends CryptoCodec {
 
 	@Override
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
-		ReedSolomon parityRS = getParityRS();
-		if (parityRS != null) {
-			parityRS.decodeMissing(shards, shardPresent, 0, shardSize);
-		}
+		decodeRS(shardPresent, shards, shardSize);
 
 		try {
 			return decrypt(shards);
@@ -95,10 +78,14 @@ public class RC4Codec extends CryptoCodec {
 	}
 
 	public byte[][] encrypt(byte[][] data) throws InvalidCipherTextException {
+		RC4Engine encrypt = new RC4Engine();
+        encrypt.init(true, cipherParameters);
 		return process(encrypt, data);
 	}
 
 	public byte[][] decrypt(byte[][] shards) throws InvalidCipherTextException {
+		RC4Engine decrypt = new RC4Engine();
+        decrypt.init(false, cipherParameters);
 		return process(decrypt, shards);
 	}
 
@@ -109,7 +96,9 @@ public class RC4Codec extends CryptoCodec {
 		
 		for (int i = 0; i < getDataShardsNum(); i++) {
 			engine.processBytes(shards[i], 0, inputLength, output[i], 0);
+			engine.reset();
 		}
+		System.out.println();
 		return output;
 	}
 }

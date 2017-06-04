@@ -25,6 +25,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private static final int N_THREADS = 2;
 	private Codec codec;
 	private Map<Integer, long[]> checksumMap = new ConcurrentHashMap<>();
+	private Map<Integer, Integer> sizesMap = new ConcurrentHashMap<>();
 	private Map<Integer, byte[][]> readMap = new ConcurrentHashMap<>();
 	private Map<Integer, Integer> chunksMap = new ConcurrentHashMap<>();
 	private Integer mutex = -1;
@@ -45,7 +46,8 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			synchronized (mutex) {
 				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
 				byte[][] responses = readMap.get(stripeId);
-				int chunkId = (((serverId - response.getChunkId() - response.getObjectId())%codec.getSize()) + codec.getSize())%codec.getSize();
+				int chunkId = (((serverId - response.getChunkId() - response.getObjectId()) % codec.getSize())
+						+ codec.getSize()) % codec.getSize();
 				responses[chunkId] = response.getData();
 				Integer chunksNum = chunksMap.get(stripeId);
 				if (chunksNum == null) {
@@ -57,7 +59,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			}
 		}
 	}
-	
+
 	void readFile(Item item) {
 		if (item != null) {
 			for (int i = 0; i < item.getStripesNumber(); i++) {
@@ -65,33 +67,37 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			}
 		}
 	}
-	
+
 	void die() {
 		synchronized (mutex) {
 			die = true;
 			mutex.notify();
 		}
 	}
-	
-	void addChecksum(int stripeId, final int itemId, byte[][] dataShards) {
-		checksumMap.put(calcStripeId(itemId, stripeId), calcChecksum(dataShards));
+
+	void addChecksum(int stripeNum, final int itemId, byte[][] dataShards) {
+		int stripeId = calcStripeId(itemId, stripeNum);
+		checksumMap.put(stripeId, calcChecksum(dataShards, dataShards[0].length));
+		sizesMap.put(stripeId, dataShards[0].length);
 	}
-	
+
 	void saveChecksums() throws FileNotFoundException, IOException {
 		File outputFile = new File(CHECKSUMS_FILENAME);
 		ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(outputFile));
 		out.writeObject(checksumMap);
+		out.writeObject(sizesMap);
 		out.close();
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	void loadChecksums() throws FileNotFoundException, IOException, ClassNotFoundException {
 		File inputFile = new File(CHECKSUMS_FILENAME);
 		ObjectInputStream in = new ObjectInputStream(new FileInputStream(inputFile));
 		checksumMap = (Map<Integer, long[]>) in.readObject();
+		sizesMap = (Map<Integer, Integer>) in.readObject();
 		in.close();
 	}
-	
+
 	@Override
 	public void run() {
 		executer = Executors.newFixedThreadPool(N_THREADS);
@@ -107,12 +113,12 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			executer.shutdown();
 		}
 	}
-	
+
 	private boolean isStripeReady(Integer chunkId, Integer chunksNum) {
 		if (chunksNum < shouldPresent) {
 			return false;
 		}
-		
+
 		byte[][] chunks = readMap.get(chunkId);
 		readMap.remove(chunkId);
 
@@ -121,7 +127,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			public void run() {
 				StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), logger);
 				byte[][] decode = codec.decode(chunksPresent(chunks), chunks, chunks[0].length);
-				long[] checksum = calcChecksum(decode);
+				long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
 				long[] origChecksum = checksumMap.get(chunkId);
 				for (int i = 0; i < checksum.length; i++) {
 					if (checksum[i] != origChecksum[i]) {
@@ -145,16 +151,16 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		}
 		return shardPresent;
 	}
-	
+
 	private int calcStripeId(int itemId, int stripeId) {
 		return (itemId << 10) + stripeId;
 	}
 
-	private long[] calcChecksum(byte[][] dataShards) {
+	private long[] calcChecksum(byte[][] dataShards, int size) {
 		CRC32 crc = new CRC32();
 		long[] checksums = new long[dataShards.length];
 		for (int i = 0; i < dataShards.length; i++) {
-			crc.update(dataShards[i]);
+			crc.update(dataShards[i], 0, size);
 			checksums[i] = crc.getValue();
 		}
 		return checksums;

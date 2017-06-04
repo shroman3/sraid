@@ -47,11 +47,30 @@ public abstract class CryptoCodec extends Codec {
 		}
 	}
 	
-	protected ReedSolomon getParityRS() {
-		return parityRS;
-	}
-	
 	protected byte[] getKey() {
 		return key;
+	}
+	
+	protected byte[][] encodeRS(byte[][] encrypt) {
+		if (parityRS == null) {
+			return encrypt;
+		}
+		byte[][] shards = new byte[getSize()][];
+		int i = 0;
+		for (; i < encrypt.length; i++) {
+			shards[i] = encrypt[i];
+		}
+		for (; i < shards.length; i++) {
+			shards[i] = new byte[encrypt[0].length];
+		}
+		
+		parityRS.encodeParity(shards, 0, encrypt[0].length);
+		return shards;
+	}
+
+	protected void decodeRS(boolean[] shardPresent, byte[][] shards, int shardSize) {
+		if (parityRS != null) {
+			parityRS.decodeMissing(shards, shardPresent, 0, shardSize);
+		}
 	}
 }

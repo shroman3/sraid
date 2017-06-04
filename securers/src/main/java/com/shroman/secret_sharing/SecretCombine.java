@@ -64,8 +64,8 @@ public class SecretCombine {
 			for (int j = 0; j < size; ++j) {
 				int share_byte = unsignedToBytes(shares[i][j]);
 				if (share_byte != 0) {
-					secret[0][j] ^= LogExpTables.exps[logLi + LogExpTables.logs[share_byte]];
-					secret[1][j] ^= LogExpTables.exps[logDLi + LogExpTables.logs[share_byte]];
+					secret[1][j] ^= LogExpTables.exps[logLi + LogExpTables.logs[share_byte]];
+					secret[0][j] ^= LogExpTables.exps[logDLi + LogExpTables.logs[share_byte]];
 				}
 			}
 		}

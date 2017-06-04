@@ -9,6 +9,7 @@ import com.shroman.secureraid.codec.AESCodec;
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.codec.NoCodec;
 import com.shroman.secureraid.codec.RC4Codec;
+import com.shroman.secureraid.codec.SecretSharingCodec;
 import com.shroman.secureraid.codec.SecureBackblazeRS;
 import com.shroman.secureraid.utils.Utils;
 
@@ -22,17 +23,18 @@ public enum CodecType {
 			return builder.build();
 		}
 	},
-	SECURE_BACKBLAZE_RS("BB", "BBRS", "BACKBLAZE", "SECURE BACKBLAZE RS") {
+	SECURE_BACKBLAZE_RS("BB", "BBRS", "BACKBLAZE", "SECURE_BACKBLAZE_RS") {
 		@Override
 		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 3, "Arguments");
+			Utils.validateArraySize(args, 4, "Arguments");
 			SecureBackblazeRS.Builder builder = new SecureBackblazeRS.Builder();
 
 			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(Integer.parseInt(args[1]));
-			return builder.setSecrecyShardsNum(Integer.parseInt(args[2])).setRandom(new SecureRandom()).build();
+			return builder.setSecrecyShardsNum(Integer.parseInt(args[2]))
+					.setRandom(new SecureRandom(args[3].getBytes())).build();
 		}
 	},
-	SECURE_JRS("JRS", "JERASURE", "SECURE JERASURE RS") {
+	SECURE_JRS("JRS", "JERASURE", "SECURE_JERASURE_RS") {
 		@Override
 		Codec buildCodecFromArgs(String[] args) {
 			throw new UnsupportedOperationException();
@@ -49,7 +51,7 @@ public enum CodecType {
 		Codec buildCodecFromArgs(String[] args) {
 			Utils.validateArraySize(args, 2, "Arguments");
 			AESCodec.Builder builder = new AESCodec.Builder();
-			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
+			builder.setKey(args[1]).setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
 			return builder.build();
 		}
 	},
@@ -58,25 +60,43 @@ public enum CodecType {
 		Codec buildCodecFromArgs(String[] args) {
 			Utils.validateArraySize(args, 3, "Arguments");
 			AESCodec.Builder builder = new AESCodec.Builder();
-			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(Integer.parseInt(args[1]));
+			builder.setKey(args[2]).setDataShardsNum(Integer.parseInt(args[0]))
+					.setParityShardsNum(Integer.parseInt(args[1]));
 			return builder.build();
 		}
 	},
 	RC4("RC4") {
 		@Override
 		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 1, "Arguments");
+			Utils.validateArraySize(args, 2, "Arguments");
 			RC4Codec.Builder builder = new RC4Codec.Builder();
-			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
+			builder.setKey(args[1]).setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
 			return builder.build();
 		}
 	},
 	RC4_RS("RC4RS", "RC4_RS") {
 		@Override
 		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 2, "Arguments");
+			Utils.validateArraySize(args, 3, "Arguments");
 			RC4Codec.Builder builder = new RC4Codec.Builder();
-			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(Integer.parseInt(args[1]));
+			builder.setKey(args[2]).setDataShardsNum(Integer.parseInt(args[0]))
+					.setParityShardsNum(Integer.parseInt(args[1]));
+			return builder.build();
+		}
+	},
+	SECRET_SHARING("SSS", "SS", "SECRETS", "SSHARING") {
+		@Override
+		Codec buildCodecFromArgs(String[] args) {
+			Utils.validateArraySize(args, 4, "Arguments");
+			SecretSharingCodec.Builder builder = new SecretSharingCodec.Builder();
+
+			int dataShardsNum = Integer.parseInt(args[0]);
+			if (dataShardsNum > 2) {
+				throw new UnsupportedOperationException();				
+			}
+			
+			builder.setRandom(new SecureRandom(args[3].getBytes())).setSecrecyShardsNum(Integer.parseInt(args[2]))
+					.setDataShardsNum(dataShardsNum).setParityShardsNum(Integer.parseInt(args[1]));
 			return builder.build();
 		}
 	};

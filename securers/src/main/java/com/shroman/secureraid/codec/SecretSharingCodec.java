@@ -1,7 +1,5 @@
 package com.shroman.secureraid.codec;
 
-import java.util.Arrays;
-
 import com.shroman.secret_sharing.SecretCombine;
 import com.shroman.secret_sharing.SecretSplit;
 
@@ -40,7 +38,7 @@ public class SecretSharingCodec extends SecureCodec {
 		super(other);
 		shareIndexes  = new int[getSize()];
 		for (int i = 0; i < shareIndexes.length; i++) {
-			shareIndexes[i] = i+1;
+			shareIndexes[i] = getRandom().nextInt() & 0xFF;
 		}
 	}
 
@@ -62,12 +60,12 @@ public class SecretSharingCodec extends SecureCodec {
 		for (int i = 0; i < shardPresent.length && (sharesPresent < shareIndexes.length); i++) {
 			if (shardPresent[i]) {
 				shares[sharesPresent] = shards[i]; 
-				shareIndexes[sharesPresent] = i;
+				shareIndexes[sharesPresent] = this.shareIndexes[i];
 				++sharesPresent;
 			}
 		}
 		
-		SecretCombine combine = new SecretCombine(Arrays.copyOfRange(shareIndexes, 0, getDataShardsNum()), shares);
+		SecretCombine combine = new SecretCombine(shareIndexes, shares);
 		return combine.extractSecret(getDataShardsNum());
 	}
 }
