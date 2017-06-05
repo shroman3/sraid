@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -30,6 +29,7 @@ import org.xml.sax.SAXException;
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.MessageType;
+import com.shroman.secureraid.utils.Utils;
 import com.shroman.secureraid.utils.XMLGetter;
 import com.shroman.secureraid.utils.XMLGetter.Getter;
 import com.shroman.secureraid.utils.XMLParsingException;
@@ -38,7 +38,6 @@ public class WriteClient {
 	private static final String ITEMS_FILENAME = "items.ser";
 	private static final String CONFIG_XML = "config.xml";
 	private static final int BYTES_IN_MEGABYTE = 1048576;
-	private static final int N_THREADS = 2;
 	private List<ServerConnection> servers = new ArrayList<>();
 	private Map<String, Item> itemsMap = new HashMap<>();
 	private int itemIdGenerator = 0;
@@ -50,10 +49,12 @@ public class WriteClient {
 	private ReadClient reader;
 	private Logger logger;
 	private OperationType operation;
+	private Config config;
 
 	public static void main(String[] args) {
 		Scanner inputFileScanner = null;
 		try {
+//			WriteClient client = new WriteClient(Arrays.copyOfRange(args, 1, args.length));
 			WriteClient client = new WriteClient(args);
 			inputFileScanner = new Scanner(new FileInputStream("input.txt"));
 			// inputFileScanner = new Scanner(System.in);
@@ -73,16 +74,19 @@ public class WriteClient {
 
 	private WriteClient(String[] args) throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {	
 		XMLGetter xmlGetter = new XMLGetter(CONFIG_XML);
+		config = new Config(xmlGetter);
 		logger = Logger.getLogger("Encode");
-
 		clientId = xmlGetter.getIntField("client", "id");
 		stripeSize = xmlGetter.getIntField("client", "stripe_size") * BYTES_IN_MEGABYTE;
 		codec = CodecType.getCodecFromArgs(Arrays.copyOfRange(args, 1, args.length));
 		shardSize = stripeSize / codec.getDataShardsNum();
-		executer = Executors.newFixedThreadPool(N_THREADS);
-		reader = new ReadClient(codec);
+		reader = new ReadClient(codec, config);
 		initServerConnections(xmlGetter, codec.getSize());
 		operation = OperationType.getOperationByName(args[0]);
+	}
+
+	public void initWriter() {
+		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
 	}
 	
 	void initReader() throws ClassNotFoundException, IOException {
@@ -99,6 +103,11 @@ public class WriteClient {
 		finalizeServerConnections();
 	}
 	
+	void finalizeReader() {
+		reader.die();
+		finalizeServerConnections();
+	}
+	
 	private void saveItemsMap() throws IOException {
 		File outputFile = new File(ITEMS_FILENAME);
 		ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(outputFile));
@@ -112,11 +121,6 @@ public class WriteClient {
 		ObjectInputStream in = new ObjectInputStream(new FileInputStream(inputFile));
 		itemsMap = (Map<String, Item>) in.readObject();
 		in.close();
-	}
-
-	void finalizeReader() {
-		reader.die();
-		finalizeServerConnections();
 	}
 
 	void degReadFile(String fileName) {
@@ -217,7 +221,7 @@ public class WriteClient {
 		for (int i = 0; i < size; i++) {
 			Getter getter = iterator.next();
 			ServerConnection serverConnection = new ServerConnection(i, clientId, getter.getAttribute("host"),
-					getter.getIntAttribute("port"), reader);
+					getter.getIntAttribute("port"), reader, config);
 			servers.add(serverConnection);
 			serverConnection.start();
 		}

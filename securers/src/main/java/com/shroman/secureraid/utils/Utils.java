@@ -21,31 +21,37 @@
  *******************************************************************************/
 package com.shroman.secureraid.utils;
 
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
 public class Utils {
 	public static void validateNotNull(Object param, String paramName) {
 		if (param == null) {
 			throw new IllegalArgumentException(paramName + " parameter is null (It shouldn't be)");
 		}
 	}
-	
+
 	public static void validateNotNegative(int param, String paramName) {
 		if (param < 0) {
 			throw new IllegalArgumentException(paramName + " parameter is negative (it shouldn't be)");
 		}
 	}
-	
+
 	public static void validatePositive(int param, String paramName) {
 		if (param < 0) {
 			throw new IllegalArgumentException(paramName + " parameter isn't positive (it should be)");
 		}
 	}
-	
+
 	public static void validateNotNegative(double param, String paramName) {
 		if (param < 0) {
 			throw new IllegalArgumentException(paramName + " parameter is negative (It shouldn't be)");
 		}
 	}
-	
+
 	public static void validateInteger(double param, String paramName) {
 		if (param != (int) param) {
 			throw new IllegalArgumentException(paramName + " parameter is not an Integer (It should be)");
@@ -62,5 +68,23 @@ public class Utils {
 		if (objects.length != size) {
 			throw new IllegalArgumentException(paramName + " should have exactly " + size + " items");
 		}
+	}
+
+	public static ExecutorService buildExecutor(int threadsNum, int maxTasksNum) {
+	    RejectedExecutionHandler rejectedExecutionHandler = new RejectedExecutionHandler() {
+			@Override
+			public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+				while(true) {					
+					try {
+						if (!executor.isShutdown()) {
+							executor.getQueue().put(r);
+							return;
+						}
+					} catch (InterruptedException e) {}
+				}
+			}
+		};
+		return new ThreadPoolExecutor(threadsNum, threadsNum, 0L, TimeUnit.MILLISECONDS,
+				new ArrayBlockingQueue<Runnable>(maxTasksNum), rejectedExecutionHandler);
 	}
 }

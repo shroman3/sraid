@@ -9,6 +9,7 @@ public enum OperationType {
 	WRITE("W", "WRITE") {
 		@Override
 		void initOperation(WriteClient client) {
+			client.initWriter();
 		}
 		
 		@Override

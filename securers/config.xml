@@ -4,6 +4,9 @@
 	<client>
 		<id>12</id>
 		<stripe_size>4</stripe_size><!-- in Megabytes -->
+		<executer_threads_num>2</executer_threads_num>
+        <executer_queue_size>30</executer_queue_size>
+        <server_connection_queue_size>20</server_connection_queue_size>
 	</client>
 	<connections>
 <!--  		<server host="52.33.142.212" port="12300" /> -->

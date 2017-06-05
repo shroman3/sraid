@@ -6,7 +6,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 import org.apache.log4j.Logger;
 import org.perf4j.StopWatch;
@@ -18,18 +19,20 @@ import com.shroman.secureraid.common.Response;
 class ServerConnection extends Thread {
 	private String host;
 	private int port;
-	private ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
+	private BlockingQueue<Message> messages; 
+//	private ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
 	private Socket socket;
 	private int serverId;
 	private PushResponseInterface pushResponse;
 	private Logger logger;
 	private boolean die = false;
 
-	ServerConnection(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse) throws UnknownHostException, IOException {
+	ServerConnection(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse, Config config) throws UnknownHostException, IOException {
 		this.serverId = serverId;
 		this.host = host;
 		this.port = port;
 		this.pushResponse = pushResponse;
+		messages = new ArrayBlockingQueue<>(config.getServerConnectionQueueSize());
 		socket = new Socket(host, port);
         socket.getOutputStream().write(clientId);
         socket.getOutputStream().write(serverId);
@@ -71,7 +74,14 @@ class ServerConnection extends Thread {
 	}
 
 	public void addMessage(Message message) {
-		messages.add(message);
+		while(true) {			
+			try {
+				messages.put(message);
+				break;
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	@Override
@@ -89,16 +99,16 @@ class ServerConnection extends Thread {
 			}
 			String messageTag = message.toString();
 			StopWatch stopWatch = new Log4JStopWatch(messageTag, "SEND", logger);
-			output.writeObject(message);
+			output.writeUnshared(message);
 			stopWatch.stop();
 			stopWatch.start(messageTag, "RECIEVE");
-			Object readObject = input.readObject();
-			Response response = (Response) readObject;
+			Response response = (Response) input.readUnshared();
 			stopWatch.stop();
 			if (!response.isSuccess()) {
 				System.err.println("something wrong");
 			}
 			pushResponse.push(response, serverId);
+			output.reset();
 		}
 	}
 }

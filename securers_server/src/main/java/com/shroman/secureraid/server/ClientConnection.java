@@ -44,7 +44,7 @@ public class ClientConnection extends Thread {
 				Response response;
 				StopWatch stopWatch = new Log4JStopWatch(logger);
 				try {
-					message = (Message) input.readObject();
+					message = (Message) input.readUnshared();
 					String messageTag = message.toString();
 					stopWatch.stop(messageTag, "RECIEVE");
 					stopWatch.start();
@@ -65,7 +65,8 @@ public class ClientConnection extends Thread {
 					}
 					e.printStackTrace();
 				}
-				output.writeObject(response);
+				output.reset();
+				output.writeUnshared(response);
 				stopWatch.stop(response.toString(), "SEND");
 			}
 		} catch (ClassNotFoundException | IOException e) {

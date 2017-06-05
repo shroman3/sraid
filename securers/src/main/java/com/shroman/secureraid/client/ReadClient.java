@@ -10,7 +10,6 @@ import java.io.ObjectOutputStream;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.zip.CRC32;
 
 import org.apache.log4j.Logger;
@@ -19,10 +18,10 @@ import org.perf4j.log4j.Log4JStopWatch;
 
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.common.Response;
+import com.shroman.secureraid.utils.Utils;
 
 public class ReadClient extends Thread implements PushResponseInterface {
 	private static final String CHECKSUMS_FILENAME = "checksums.ser";
-	private static final int N_THREADS = 2;
 	private Codec codec;
 	private Map<Integer, long[]> checksumMap = new ConcurrentHashMap<>();
 	private Map<Integer, Integer> sizesMap = new ConcurrentHashMap<>();
@@ -33,9 +32,11 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private ExecutorService executer;
 	private int shouldPresent;
 	private Logger logger;
+	private Config config;
 
-	ReadClient(Codec codec) {
+	ReadClient(Codec codec, Config config) {
 		this.codec = codec;
+		this.config = config;
 		shouldPresent = codec.getSize() - codec.getParityShardsNum();
 		logger = Logger.getLogger("Decode");
 	}
@@ -100,7 +101,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 
 	@Override
 	public void run() {
-		executer = Executors.newFixedThreadPool(N_THREADS);
+		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
 		synchronized (mutex) {
 			while (!(die && readMap.isEmpty())) {
 				try {

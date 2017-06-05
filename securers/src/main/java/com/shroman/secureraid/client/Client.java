@@ -181,7 +181,7 @@ public class Client implements PushResponseInterface {
 		for (int i = 0; i < size; i++) {
 			Getter getter = iterator.next();
 			ServerConnection serverConnection = new ServerConnection(i, clientId, getter.getAttribute("host"),
-					getter.getIntAttribute("port"), this);
+					getter.getIntAttribute("port"), this, null);
 			servers.add(serverConnection);
 			serverConnection.start();
 		}
