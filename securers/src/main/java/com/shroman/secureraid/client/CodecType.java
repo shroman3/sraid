@@ -1,7 +1,5 @@
 package com.shroman.secureraid.client;
 
-import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,95 +9,75 @@ import com.shroman.secureraid.codec.NoCodec;
 import com.shroman.secureraid.codec.RC4Codec;
 import com.shroman.secureraid.codec.SecretSharingCodec;
 import com.shroman.secureraid.codec.SecureBackblazeRS;
+import com.shroman.secureraid.codec.SecureEvenodd;
+import com.shroman.secureraid.codec.SecureJerasureRS;
 import com.shroman.secureraid.utils.Utils;
 
 public enum CodecType {
 	NONE("NONE", "NOP", "NO") {
 		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 1, "Arguments");
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			NoCodec.Builder builder = new NoCodec.Builder();
-			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
+			builder.setDataShardsNum(k).setParityShardsNum(0);
 			return builder.build();
 		}
 	},
-	SECURE_BACKBLAZE_RS("BB", "BBRS", "BACKBLAZE", "SECURE_BACKBLAZE_RS") {
+	SECURE_BACKBLAZE_RS("BB", "BBRS") {
 		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 4, "Arguments");
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			SecureBackblazeRS.Builder builder = new SecureBackblazeRS.Builder();
 
-			builder.setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(Integer.parseInt(args[1]));
-			return builder.setSecrecyShardsNum(Integer.parseInt(args[2]))
-					.setRandom(new SecureRandom(args[3].getBytes())).build();
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandom(randomName, randomKey)).build();
 		}
 	},
 	SECURE_JRS("JRS", "JERASURE", "SECURE_JERASURE_RS") {
 		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			throw new UnsupportedOperationException();
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			SecureJerasureRS.Builder builder = new SecureJerasureRS.Builder();
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandom(randomName, randomKey)).build();
 		}
 	},
 	SECURE_EVENODD("EVENODD", "EO", "ED") {
 		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			throw new UnsupportedOperationException();
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandom(randomName, randomKey)).build();
 		}
 	},
-	AES("AES256", "AES") {
+	AES_RS("AES", "AESRS", "AES_RS") {
 		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 2, "Arguments");
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			AESCodec.Builder builder = new AESCodec.Builder();
-			builder.setKey(args[1]).setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
+			builder.setKey(randomKey).setDataShardsNum(k).setParityShardsNum(r);
 			return builder.build();
 		}
 	},
-	AES_RS("AES256RS", "AESRS", "AES_RS") {
+	RC4_RS("RC4", "RC4RS", "RC4_RS") {
 		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 3, "Arguments");
-			AESCodec.Builder builder = new AESCodec.Builder();
-			builder.setKey(args[2]).setDataShardsNum(Integer.parseInt(args[0]))
-					.setParityShardsNum(Integer.parseInt(args[1]));
-			return builder.build();
-		}
-	},
-	RC4("RC4") {
-		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 2, "Arguments");
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			RC4Codec.Builder builder = new RC4Codec.Builder();
-			builder.setKey(args[1]).setDataShardsNum(Integer.parseInt(args[0])).setParityShardsNum(0);
+			builder.setKey(randomKey).setDataShardsNum(k).setParityShardsNum(r);
 			return builder.build();
 		}
 	},
-	RC4_RS("RC4RS", "RC4_RS") {
+	SECRET_SHARING("SSS") {
 		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 3, "Arguments");
-			RC4Codec.Builder builder = new RC4Codec.Builder();
-			builder.setKey(args[2]).setDataShardsNum(Integer.parseInt(args[0]))
-					.setParityShardsNum(Integer.parseInt(args[1]));
-			return builder.build();
-		}
-	},
-	SECRET_SHARING("SSS", "SS", "SECRETS", "SSHARING") {
-		@Override
-		Codec buildCodecFromArgs(String[] args) {
-			Utils.validateArraySize(args, 4, "Arguments");
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			SecretSharingCodec.Builder builder = new SecretSharingCodec.Builder();
 
-			int dataShardsNum = Integer.parseInt(args[0]);
-			if (dataShardsNum > 2) {
-				throw new UnsupportedOperationException();				
+			if (k > 2) {
+				throw new UnsupportedOperationException();
 			}
-			
-			builder.setRandom(new SecureRandom(args[3].getBytes())).setSecrecyShardsNum(Integer.parseInt(args[2]))
-					.setDataShardsNum(dataShardsNum).setParityShardsNum(Integer.parseInt(args[1]));
+
+			builder.setRandom(RandomType.getRandom(randomName, randomKey)).setSecrecyShardsNum(z).setDataShardsNum(k)
+					.setParityShardsNum(r);
 			return builder.build();
 		}
 	};
+	
 	private String[] codecNames;
 
 	private static Map<String, CodecType> namesMap;
@@ -113,13 +91,14 @@ public enum CodecType {
 		init();
 	}
 
-	public static Codec getCodecFromArgs(String[] args) {
-		Utils.validateArrayNotEmpty(args, "Arguments");
-		CodecType codecType = namesMap.get(args[0].toUpperCase());
-		return codecType.buildCodecFromArgs(Arrays.copyOfRange(args, 1, args.length));
+	public static Codec getCodecFromArgs(String codecName, int k, int r, int z, String randomName, String randomKey) {
+		Utils.validateNotNull(codecName, "codec name");
+		Utils.validateNotNull(randomKey, "random key");
+		CodecType codecType = namesMap.get(codecName.toUpperCase());
+		return codecType.buildCodecFromArgs(k, r, z, randomName, randomKey);
 	}
 
-	abstract Codec buildCodecFromArgs(String[] args);
+	abstract Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey);
 
 	private static void init() {
 		Map<String, CodecType> names = new HashMap<>();

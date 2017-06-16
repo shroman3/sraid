@@ -10,7 +10,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +28,8 @@ import org.xml.sax.SAXException;
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.MessageType;
+import com.shroman.secureraid.common.Response;
+import com.shroman.secureraid.common.ResponseType;
 import com.shroman.secureraid.utils.Utils;
 import com.shroman.secureraid.utils.XMLGetter;
 import com.shroman.secureraid.utils.XMLGetter.Getter;
@@ -38,7 +39,7 @@ public class WriteClient {
 	private static final String ITEMS_FILENAME = "items.ser";
 	private static final String CONFIG_XML = "config.xml";
 	private static final int BYTES_IN_MEGABYTE = 1048576;
-	private List<ServerConnection> servers = new ArrayList<>();
+	private List<Connection> servers = new ArrayList<>();
 	private Map<String, Item> itemsMap = new HashMap<>();
 	private int itemIdGenerator = 0;
 	private int clientId;
@@ -50,19 +51,22 @@ public class WriteClient {
 	private Logger logger;
 	private OperationType operation;
 	private Config config;
+	private XMLGetter xmlGetter;
 
 	public static void main(String[] args) {
 		Scanner inputFileScanner = null;
 		try {
-//			WriteClient client = new WriteClient(Arrays.copyOfRange(args, 1, args.length));
-			WriteClient client = new WriteClient(args);
+			XMLGetter xmlGetter = new XMLGetter(CONFIG_XML);
+			WriteClient client = buildClient(args, xmlGetter);
 			inputFileScanner = new Scanner(new FileInputStream("input.txt"));
-			// inputFileScanner = new Scanner(System.in);
 			try {
 				client.run(inputFileScanner);
 			} catch (Exception e) {
 				System.out.println("Something went wrong: " + e.getMessage());
 			}
+		} catch (IllegalArgumentException e) {
+			System.out.println("Please call the client with the following arguments:\n"
+					+ "operation_type codec_name k r z random_key");
 		} catch (ParserConfigurationException | SAXException | IOException | XMLParsingException e) {
 			throw new RuntimeException("Unable to load config XML file(" + CONFIG_XML + ")\n" + e.getMessage());
 		} finally {
@@ -72,27 +76,39 @@ public class WriteClient {
 		}
 	}
 
-	private WriteClient(String[] args) throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {	
-		XMLGetter xmlGetter = new XMLGetter(CONFIG_XML);
-		config = new Config(xmlGetter);
+	private WriteClient(Codec codec, OperationType operation, XMLGetter xmlGetter)
+			throws XMLParsingException, UnknownHostException, IOException {
+		this.xmlGetter = xmlGetter;
+		this.codec = codec;
 		logger = Logger.getLogger("Encode");
+		config = new Config(xmlGetter);
 		clientId = xmlGetter.getIntField("client", "id");
 		stripeSize = xmlGetter.getIntField("client", "stripe_size") * BYTES_IN_MEGABYTE;
-		codec = CodecType.getCodecFromArgs(Arrays.copyOfRange(args, 1, args.length));
 		shardSize = stripeSize / codec.getDataShardsNum();
 		reader = new ReadClient(codec, config);
-		initServerConnections(xmlGetter, codec.getSize());
-		operation = OperationType.getOperationByName(args[0]);
+		this.operation = operation;
 	}
 
-	public void initWriter() {
+	public void initEncoder() throws UnknownHostException, XMLParsingException, IOException {
 		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
+		initMockConnections(codec.getSize());
 	}
-	
-	void initReader() throws ClassNotFoundException, IOException {
+
+	public void initWriter() throws UnknownHostException, XMLParsingException, IOException {
+		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
+		initServerConnections(xmlGetter, codec.getSize());
+	}
+
+	void initReader() throws ClassNotFoundException, IOException, XMLParsingException {
 		loadItemsMap();
 		reader.loadChecksums();
 		reader.start();
+		initServerConnections(xmlGetter, codec.getSize());
+	}
+
+	void finalizeEncoder() throws InterruptedException, IOException {
+		executer.shutdown();
+		executer.awaitTermination(10, TimeUnit.MINUTES);
 	}
 
 	void finalizeWriter() throws InterruptedException, IOException {
@@ -102,19 +118,19 @@ public class WriteClient {
 		saveItemsMap();
 		finalizeServerConnections();
 	}
-	
+
 	void finalizeReader() {
 		reader.die();
 		finalizeServerConnections();
 	}
-	
+
 	private void saveItemsMap() throws IOException {
 		File outputFile = new File(ITEMS_FILENAME);
 		ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(outputFile));
 		out.writeObject(itemsMap);
 		out.close();
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private void loadItemsMap() throws IOException, ClassNotFoundException {
 		File inputFile = new File(ITEMS_FILENAME);
@@ -127,9 +143,9 @@ public class WriteClient {
 		Item item = itemsMap.get(fileName);
 		reader.readFile(item);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
-			for (int j = 1; j < codec.getSize() - codec.getParityShardsNum()+1; j++) {
+			for (int j = 1; j < codec.getSize() - codec.getParityShardsNum() + 1; j++) {
 				servers.get((j + i + item.getId()) % codec.getSize())
-				.addMessage(new Message(MessageType.READ, null, item.getId(), i));
+						.addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
 	}
@@ -140,7 +156,7 @@ public class WriteClient {
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			for (int j = 2; j < codec.getSize() - codec.getParityShardsNum(); j++) {
 				servers.get((j + i + item.getId()) % codec.getSize())
-				.addMessage(new Message(MessageType.READ, null, item.getId(), i));
+						.addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
 	}
@@ -151,8 +167,7 @@ public class WriteClient {
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			for (int j = 0; j < codec.getSize() - codec.getParityShardsNum(); j++) {
 				int serverId = (j + i + item.getId()) % codec.getSize();
-				servers.get(serverId)
-				.addMessage(new Message(MessageType.READ, null, item.getId(), i));
+				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
 	}
@@ -210,8 +225,7 @@ public class WriteClient {
 	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
 		for (int i = 0; i < encodedShards.length; i++) {
 			int serverId = (i + objectId + chunkId) % codec.getSize();
-			servers.get(serverId)
-					.addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
+			servers.get(serverId).addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
 		}
 	}
 
@@ -227,6 +241,21 @@ public class WriteClient {
 		}
 	}
 
+	private void initMockConnections(int size) {
+		for (int i = 0; i < size; i++) {
+			final int serverId = i;
+			servers.add(new Connection() {
+				@Override
+				public void addMessage(Message message) {
+					if (message.getType() == MessageType.WRITE) {
+						reader.push(new Response(ResponseType.WRITE, null, message.getObjectId(), message.getChunkId()),
+								serverId);
+					}
+				}
+			});
+		}
+	}
+
 	private int encodeStripe(InputStream in, final int shardSize, final int stripeId, final int itemId)
 			throws IOException {
 		int bytesRead = 0;
@@ -238,22 +267,22 @@ public class WriteClient {
 		if (bytesRead != shardSize * codec.getDataShardsNum()) {
 			throw new IOException("not enough bytes read");
 		}
-
 		executer.execute(new Runnable() {
 			@Override
 			public void run() {
-				StopWatch stopWatch = new Log4JStopWatch(Integer.toString(itemId), Integer.toString(stripeId), logger);
-				reader.addChecksum(stripeId, itemId, dataShards);
+				StopWatch stopWatch = new Log4JStopWatch(logger);
+				int combinedId = reader.addChecksum(stripeId, itemId, dataShards);
 
 				byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards);
 				sendEncoded(encodedShards, itemId, stripeId);
-				stopWatch.stop();
+				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length));
 			}
 		});
 		return bytesRead;
 	}
 
-	private void run(Scanner inputFileScanner) throws IOException, InterruptedException, ClassNotFoundException {
+	private void run(Scanner inputFileScanner)
+			throws IOException, InterruptedException, ClassNotFoundException, XMLParsingException {
 		operation.run(inputFileScanner, this);
 	}
 
@@ -271,5 +300,23 @@ public class WriteClient {
 
 		FileInputStream fileInputStream = new FileInputStream(inputFile);
 		return fileInputStream;
+	}
+
+	private static WriteClient buildClient(String[] args, XMLGetter xmlGetter)
+			throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {
+		Utils.validateArraySize(args, 7, "Arguments");
+		try {
+			String operationType = args[0];
+			String codecName = args[1];
+			int k = Integer.parseInt(args[2]);
+			int r = Integer.parseInt(args[3]);
+			int z = Integer.parseInt(args[4]);
+			String randomName = args[5];
+			String randomKey = args[6];
+			return new WriteClient(CodecType.getCodecFromArgs(codecName, k, r, z, randomName, randomKey),
+					OperationType.getOperationByName(operationType), xmlGetter);
+		} catch (NumberFormatException e) {
+			throw new IllegalArgumentException("k,r,z should be numbers: " + e.getMessage());
+		}
 	}
 }

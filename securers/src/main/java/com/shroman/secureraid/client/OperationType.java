@@ -1,14 +1,33 @@
 package com.shroman.secureraid.client;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 
+import com.shroman.secureraid.utils.XMLParsingException;
+
 public enum OperationType {
+	ENCODING("E", "ENCODE") {
+		@Override
+		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException {
+			client.initEncoder();
+		}
+		
+		@Override
+		void run(String fileName, WriteClient client) throws IOException {
+			client.encodeFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException, IOException {
+			client.finalizeEncoder();
+		}
+	},
 	WRITE("W", "WRITE") {
 		@Override
-		void initOperation(WriteClient client) {
+		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException {
 			client.initWriter();
 		}
 		
@@ -24,7 +43,7 @@ public enum OperationType {
 	},
 	READ("R", "READ") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
 			client.initReader();
 		}
 		
@@ -40,7 +59,7 @@ public enum OperationType {
 	},
 	DEG_READ("DR", "DEG", "DEGREAD", "DR1", "DEG1", "DEGREAD1") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
 			client.initReader();
 		}
 		
@@ -56,7 +75,7 @@ public enum OperationType {
 	},
 	DEG_READ2("DR2", "DEG2", "DEGREAD2") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
 			client.initReader();			
 		}
 
@@ -116,7 +135,7 @@ public enum OperationType {
 		return map;
 	}
 
-	void run(Scanner inputFileScanner, WriteClient client) throws IOException, InterruptedException, ClassNotFoundException {
+	void run(Scanner inputFileScanner, WriteClient client) throws IOException, InterruptedException, ClassNotFoundException, XMLParsingException {
 		initOperation(client);
 		while (inputFileScanner.hasNextLine()) {
 			String operationLine = inputFileScanner.nextLine().toLowerCase();
@@ -126,6 +145,6 @@ public enum OperationType {
 	}
 	
 	abstract void run(String fileName, WriteClient client) throws IOException;
-	abstract void initOperation(WriteClient client) throws ClassNotFoundException, IOException;
+	abstract void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException;
 	abstract void finalizeOperation(WriteClient client) throws InterruptedException, IOException;
 }

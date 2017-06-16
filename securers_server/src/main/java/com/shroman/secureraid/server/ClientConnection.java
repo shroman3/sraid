@@ -29,7 +29,7 @@ public class ClientConnection extends Thread {
 		id = socket.getInputStream().read();
 		serverId = socket.getInputStream().read();
 		logger = Logger.getLogger("ClientConnection");
-		logger.info("Connected with server id: " + serverId);
+//		logger.info("Connected with server id: " + serverId);
 		this.clientPath = Paths.get(serverPath.toString(), Integer.toString(id));	
 		Files.createDirectories(clientPath);
 	}
@@ -42,18 +42,24 @@ public class ClientConnection extends Thread {
 			Message message = null;
 			while (true) {
 				Response response;
+				int length = 0;
+				int responseLength = 0;
 				StopWatch stopWatch = new Log4JStopWatch(logger);
+				StopWatch fullStopWatch = new Log4JStopWatch(logger);
 				try {
 					message = (Message) input.readUnshared();
-					String messageTag = message.toString();
-					stopWatch.stop(messageTag, "RECIEVE");
+//					String messageTag = message.toString();
+					length = message.getDataLength();
+					stopWatch.stop(Integer.toString(message.getChunkId()), length + ",RECIEVE");
 					stopWatch.start();
 					response = Operation.executeOperation(clientPath, message);
-					stopWatch.stop(messageTag, "EXECUTED");
-					stopWatch.start();
 					if (response == null) {
 						break;
 					}
+					responseLength = response.getDataLength(); 
+					length += responseLength;
+					stopWatch.stop(Integer.toString(message.getChunkId()), length + ",EXECUTED");
+					stopWatch.start();
 				} catch (EOFException e) {
 					return;
 				} catch (IOException e) {
@@ -67,7 +73,8 @@ public class ClientConnection extends Thread {
 				}
 				output.reset();
 				output.writeUnshared(response);
-				stopWatch.stop(response.toString(), "SEND");
+				stopWatch.stop(Integer.toString(message.getChunkId()), responseLength + ",SEND");
+				fullStopWatch.stop(Integer.toString(message.getChunkId()), responseLength + ",FULL");
 			}
 		} catch (ClassNotFoundException | IOException e) {
 			e.printStackTrace();

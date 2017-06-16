@@ -16,7 +16,7 @@ import org.perf4j.log4j.Log4JStopWatch;
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.Response;
 
-class ServerConnection extends Thread {
+class ServerConnection extends Thread implements Connection {
 	private String host;
 	private int port;
 	private BlockingQueue<Message> messages; 
@@ -37,7 +37,7 @@ class ServerConnection extends Thread {
         socket.getOutputStream().write(clientId);
         socket.getOutputStream().write(serverId);
 		logger = Logger.getLogger("ServerConnection"+serverId);
-		logger.info("Hots:" + host + " port:" + port + " serever id: " + serverId);
+//		logger.info("Hots:" + host + " port:" + port + " serever id: " + serverId);
 	}
 
 	@Override
@@ -97,13 +97,15 @@ class ServerConnection extends Thread {
 				die = true;
 				return;
 			}
-			String messageTag = message.toString();
-			StopWatch stopWatch = new Log4JStopWatch(messageTag, "SEND", logger);
+			int length = message.getDataLength();
+			StopWatch fullStopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), length + ",FULL", logger);
+			StopWatch stopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), length + ",SEND", logger);
 			output.writeUnshared(message);
 			stopWatch.stop();
-			stopWatch.start(messageTag, "RECIEVE");
+			stopWatch.start(Integer.toString(message.getChunkId()), length + ",RECIEVE");
 			Response response = (Response) input.readUnshared();
 			stopWatch.stop();
+			fullStopWatch.stop();
 			if (!response.isSuccess()) {
 				System.err.println("something wrong");
 			}

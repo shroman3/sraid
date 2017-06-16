@@ -73,7 +73,7 @@ public class Client implements PushResponseInterface {
 		XMLGetter xmlGetter = new XMLGetter(CONFIG_XML);
 		clientId = xmlGetter.getIntField("client", "id");
 		stripeSize = xmlGetter.getIntField("client", "stripe_size") * BYTES_IN_MEGABYTE;
-		codec = CodecType.getCodecFromArgs(args);
+//		codec = CodecType.getCodecFromArgs(args);
 		shardSize = stripeSize / codec.getDataShardsNum();
 		initServerConnections(xmlGetter, codec.getSize());
 	}

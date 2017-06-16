@@ -18,6 +18,7 @@ import org.perf4j.log4j.Log4JStopWatch;
 
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.common.Response;
+import com.shroman.secureraid.common.ResponseType;
 import com.shroman.secureraid.utils.Utils;
 
 public class ReadClient extends Thread implements PushResponseInterface {
@@ -27,23 +28,44 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private Map<Integer, Integer> sizesMap = new ConcurrentHashMap<>();
 	private Map<Integer, byte[][]> readMap = new ConcurrentHashMap<>();
 	private Map<Integer, Integer> chunksMap = new ConcurrentHashMap<>();
+
+	// private Map<Integer, Integer> writesMap = new ConcurrentHashMap<>();
+	private Map<Integer, Long> timestampMap = new ConcurrentHashMap<>();
+
 	private Integer mutex = -1;
 	private boolean die = false;
 	private ExecutorService executer;
 	private int shouldPresent;
-	private Logger logger;
+	private Logger decodeLogger;
 	private Config config;
 
 	ReadClient(Codec codec, Config config) {
 		this.codec = codec;
 		this.config = config;
 		shouldPresent = codec.getSize() - codec.getParityShardsNum();
-		logger = Logger.getLogger("Decode");
+		decodeLogger = Logger.getLogger("Decode");
 	}
 
 	@Override
 	public void push(Response response, int serverId) {
-		if (response.isSuccess() && response.getData() != null) {
+		if (response.getType() == ResponseType.WRITE) {
+			synchronized (mutex) {
+				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
+				Integer chunksNum = chunksMap.get(stripeId);
+				if (chunksNum == null) {
+					chunksNum = 1;
+				} else {
+					++chunksNum;
+				}
+				if (chunksNum == codec.getSize()) {
+					chunksMap.remove(stripeId);
+					Long timestamp = timestampMap.remove(stripeId);
+					decodeLogger.info(Utils.buildLogMessage(timestamp, stripeId, ""));
+				} else {
+					chunksMap.put(stripeId, chunksNum);
+				}
+			}
+		} else if (response.isSuccess() && response.getData() != null) {
 			synchronized (mutex) {
 				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
 				byte[][] responses = readMap.get(stripeId);
@@ -76,10 +98,12 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		}
 	}
 
-	void addChecksum(int stripeNum, final int itemId, byte[][] dataShards) {
+	int addChecksum(int stripeNum, final int itemId, byte[][] dataShards) {
 		int stripeId = calcStripeId(itemId, stripeNum);
+		timestampMap.put(stripeId, System.currentTimeMillis());
 		checksumMap.put(stripeId, calcChecksum(dataShards, dataShards[0].length));
 		sizesMap.put(stripeId, dataShards[0].length);
+		return stripeId;
 	}
 
 	void saveChecksums() throws FileNotFoundException, IOException {
@@ -120,13 +144,13 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			return false;
 		}
 
-		byte[][] chunks = readMap.get(chunkId);
-		readMap.remove(chunkId);
+		byte[][] chunks = readMap.remove(chunkId);
 
 		executer.execute(new Runnable() {
 			@Override
 			public void run() {
-				StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), logger);
+				StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(chunks[0].length),
+						decodeLogger);
 				byte[][] decode = codec.decode(chunksPresent(chunks), chunks, chunks[0].length);
 				long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
 				long[] origChecksum = checksumMap.get(chunkId);

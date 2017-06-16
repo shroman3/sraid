@@ -71,20 +71,28 @@ public class Utils {
 	}
 
 	public static ExecutorService buildExecutor(int threadsNum, int maxTasksNum) {
-	    RejectedExecutionHandler rejectedExecutionHandler = new RejectedExecutionHandler() {
+		RejectedExecutionHandler rejectedExecutionHandler = new RejectedExecutionHandler() {
 			@Override
 			public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-				while(true) {					
+				while (true) {
 					try {
 						if (!executor.isShutdown()) {
 							executor.getQueue().put(r);
 							return;
 						}
-					} catch (InterruptedException e) {}
+					} catch (InterruptedException e) {
+					}
 				}
 			}
 		};
 		return new ThreadPoolExecutor(threadsNum, threadsNum, 0L, TimeUnit.MILLISECONDS,
 				new ArrayBlockingQueue<Runnable>(maxTasksNum), rejectedExecutionHandler);
+	}
+
+	public static String buildLogMessage(Long timestamp, int stripeId, String message) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("start[").append(timestamp).append("] time[").append(System.currentTimeMillis() - timestamp)
+				.append("] tag[").append(stripeId).append("] message[").append(message).append(']');
+		return sb.toString();
 	}
 }

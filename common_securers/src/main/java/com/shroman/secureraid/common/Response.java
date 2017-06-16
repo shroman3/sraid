@@ -32,10 +32,18 @@ public class Response implements Serializable {
 		return new String(data);
 	}
 
+	public ResponseType getType() {
+		return type;
+	}
+	
 	public byte[] getData() {
 		return data;
 	}
-
+	
+	public int getDataLength() {
+		return data == null ? 0 : data.length;
+	}
+	
 	public int getObjectId() {
 		return objectId;
 	}
@@ -46,6 +54,7 @@ public class Response implements Serializable {
 
 	@Override
 	public String toString() {
-		return new StringBuilder().append(type).append(",").append(objectId).append(",").append(chunkId).toString();
+		return new StringBuilder().append(type).append(",").append(data == null ? 0: data.length).toString();
+		//.append(objectId).append(",").append(chunkId).toString();
 	}
 }
