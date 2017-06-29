@@ -71,7 +71,13 @@ public abstract class CryptoCodec extends Codec {
 
 	protected void decodeRS(boolean[] shardPresent, byte[][] shards, int shardSize) {
 		if (parityRS != null) {
-			parityRS.decodeMissing(shards, shardPresent, 0, shardSize);
+
+			for (int i = 0; i < getDataShardsNum(); i++) {
+				if (!shardPresent[i]) {
+					parityRS.decodeMissing(shards, shardPresent, 0, shardSize);
+					break;
+				}
+			}
 		}
 	}
 }

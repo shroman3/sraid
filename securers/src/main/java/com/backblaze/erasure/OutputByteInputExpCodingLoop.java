@@ -24,7 +24,7 @@ public class OutputByteInputExpCodingLoop extends CodingLoopBase {
                     final byte[] inputShard = inputs[iInput];
                     value ^= Galois.multiply(matrixRow[iInput], inputShard[iByte]);
                 }
-                outputShard[iByte] = (byte) value;
+                outputShard[iByte] ^= (byte) value;
             }
         }
     }

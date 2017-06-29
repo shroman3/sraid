@@ -98,7 +98,6 @@ public class RC4Codec extends CryptoCodec {
 			engine.processBytes(shards[i], 0, inputLength, output[i], 0);
 			engine.reset();
 		}
-		System.out.println();
 		return output;
 	}
 }

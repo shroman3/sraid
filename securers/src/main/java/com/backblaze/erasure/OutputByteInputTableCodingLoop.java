@@ -26,7 +26,7 @@ public class OutputByteInputTableCodingLoop extends CodingLoopBase {
                     final byte[] multTableRow = table[matrixRow[iInput] & 0xFF];
                     value ^= multTableRow[inputShard[iByte] & 0xFF];
                 }
-                outputShard[iByte] = (byte) value;
+                outputShard[iByte] ^= (byte) value;
             }
         }
     }

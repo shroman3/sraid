@@ -33,7 +33,7 @@ import com.shroman.secureraid.utils.XMLParsingException;
 public class Client implements PushResponseInterface {
 	private static final String CONFIG_XML = "config.xml";
 	private static final int BYTES_IN_MEGABYTE = 1048576;
-	private List<ServerConnection> servers = new ArrayList<>();
+	private List<ServerConnectionWriter> servers = new ArrayList<>();
 	private Map<String, Item> fileSizes = new HashMap<>();
 	private Map<Integer, byte[][][]> readMap = new HashMap<>();
 	private Map<Integer, byte[][][]> decodedMap = new HashMap<>();
@@ -180,7 +180,7 @@ public class Client implements PushResponseInterface {
 		Iterator<Getter> iterator = xmlGetter.getIterator("connections", "server");
 		for (int i = 0; i < size; i++) {
 			Getter getter = iterator.next();
-			ServerConnection serverConnection = new ServerConnection(i, clientId, getter.getAttribute("host"),
+			ServerConnectionWriter serverConnection = new ServerConnectionWriter(i, clientId, getter.getAttribute("host"),
 					getter.getIntAttribute("port"), this, null);
 			servers.add(serverConnection);
 			serverConnection.start();

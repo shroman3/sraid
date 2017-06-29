@@ -1,12 +1,12 @@
 package com.shroman.secret_sharing;
 
-import java.security.SecureRandom;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 
 public class SecretSplit {
 
-	private final SecureRandom random = new SecureRandom();
+	private final Random random;// = new SecureRandom();
 	private int n;
 	private int size;
 	private int[] shares;
@@ -15,7 +15,8 @@ public class SecretSplit {
 	private int z;
 	private int threshold;
 
-	public SecretSplit(int n, int z, byte[][] secret, int[] shares) {
+	public SecretSplit(int n, int z, byte[][] secret, int[] shares, Random random) {
+		this.random = random;
 		this.n = n;
 		this.z = z;
 		threshold = z + secret.length;
@@ -88,15 +89,9 @@ public class SecretSplit {
 	private void fillBuffer() {
 		for (int i = 0; i < z; i++) {
 			buffer[i] = new byte[size];
-			// random.nextBytes(buffer[i]);
-			// TODO: Change back
-			for (int j = 0; j < size; j++) {
-				buffer[i][j] = (byte) (j + 1);
-			}
+			random.nextBytes(buffer[i]);
 		}
-		for (int i = 0; i < secret.length; i++) {
-			buffer[i + z] = secret[i];
-		}
+		System.arraycopy(secret, 0, buffer, z, secret.length);
 	}
 
 	private int[] ballotShareIndexes() {

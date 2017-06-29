@@ -30,6 +30,13 @@ public enum RandomType {
 			BigInteger seed = new BigInteger(randomKey.getBytes());
 			return new Random(seed.longValue());
 		}
+	},
+	NONE("NO", "NONE") {
+		@Override
+		Random buildRandom(String randomKey) {
+			BigInteger seed = new BigInteger(randomKey.getBytes());
+			return new NoRandom(seed.longValue());
+		}
 	};
 
 	private String[] randomNames;

@@ -28,61 +28,91 @@ public class SecureBackblazeRS extends SecureCodec {
 		}
 	}
 
-	private ReedSolomon secrecyRS;
-	private ReedSolomon parityRS;
+	private ReedSolomon secrecyRS = null;
+	private ReedSolomon parityRS = null;
+	private DecryptInterface decrypt;
+	private DecodeInterface decodeMissing;
 
 	SecureBackblazeRS() {
 	}
 
 	SecureBackblazeRS(SecureBackblazeRS other) {
 		super(other);
-		
-		secrecyRS = new ReedSolomon(getSecrecyShardsNum(), getParityShardsNum() + getDataShardsNum(), new InputOutputByteTableCodingLoop());
-		parityRS = new ReedSolomon(getSecrecyShardsNum() + getDataShardsNum(), getParityShardsNum(), new InputOutputByteTableCodingLoop());
 
+		if (getSecrecyShardsNum() > 0) {
+			decrypt = SecureBackblazeRS::decrypt;
+			secrecyRS = new ReedSolomon(getSecrecyShardsNum(), getParityShardsNum() + getDataShardsNum(),
+					new InputOutputByteTableCodingLoop());
+		} else {
+			decrypt = SecureBackblazeRS::emptyDecrypt;
+		}
+		
+		if (getParityShardsNum() > 0) {
+			decodeMissing = SecureBackblazeRS::decodeMissing;
+			parityRS = new ReedSolomon(getSecrecyShardsNum() + getDataShardsNum(), getParityShardsNum(),
+					new InputOutputByteTableCodingLoop());
+		} else {
+			decodeMissing = SecureBackblazeRS::emptyDecodeMissing;
+		}
 	}
 
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
-		byte[][] shards = new byte[getSize()][shardSize];
+		byte[][] shards = new byte[getSize()][];
 		for (int i = 0; i < getSecrecyShardsNum(); i++) {
+			shards[i] = new byte[shardSize];
 			getRandom().nextBytes(shards[i]);
 		}
-		secrecyRS.encodeParity(shards, 0, shardSize);
-		// Fill in the data shards
-		for (int i = 0; i < getDataShardsNum(); i++) {
-			for (int j = 0; j < shardSize; j++) {
-				shards[i + getSecrecyShardsNum()][j] = (byte) (shards[i + getSecrecyShardsNum()][j] ^ data[i][j]);
-			}
+		System.arraycopy(data, 0, shards, getSecrecyShardsNum(), getDataShardsNum());
+		for (int i = getDataShardsNum() + getSecrecyShardsNum(); i < shards.length; i++) {
+			shards[i] = new byte[shardSize];
+		}
+
+		if (getSecrecyShardsNum() > 0) {
+			secrecyRS.encodePartialParity(shards, 0, shardSize, getDataShardsNum());
 		}
 
 		// Use Reed-Solomon to calculate the parity.
-		parityRS.encodeParity(shards, 0, shardSize);
+		if (getParityShardsNum() > 0) {
+			parityRS.encodeParity(shards, 0, shardSize);
+		}
 		return shards;
 	}
 
 	@Override
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
-		byte[][] data = new byte[getDataShardsNum()][shardSize];
-		parityRS.decodeMissing(shards, shardPresent, 0, shardSize);
-		final byte[][] secrecyShards = new byte[getSize()][shardSize];
-		// Fill in the data shards
-		for (int i = 0; i < getSecrecyShardsNum(); i++) {
-			System.arraycopy(shards[i], 0, secrecyShards[i], 0, shardSize);
-		}
-		
-		secrecyRS.encodeParity(secrecyShards, 0, shardSize);
-		// Fill in the data shards
-		for (int i = 0; i < getDataShardsNum(); i++) {
-			int afterSecretIndex = i + getSecrecyShardsNum();
-			for (int j = 0; j < shardSize; j++) {
-				data[i][j] = (byte) (shards[afterSecretIndex][j] ^ secrecyShards[afterSecretIndex][j]);
-			}
-		}
+		decodeMissing.decodeMissing(parityRS, shardPresent, shards, shardSize);
+
+		decrypt.decrypt(secrecyRS, shardSize, shards);
+		byte[][] data = new byte[getDataShardsNum()][];
+		System.arraycopy(shards, getSecrecyShardsNum(), data, 0, getDataShardsNum());
 		return data;
 	}
 
-	public Builder getSelfBuilder() {
-		return new Builder(this);
+	private static void emptyDecodeMissing(ReedSolomon parityRS, boolean[] shardPresent, byte[][] shards, int shardSize) {}
+
+	private static void decodeMissing(ReedSolomon parityRS, boolean[] shardPresent, byte[][] shards, int shardSize) {
+		for (int i = 0; i < parityRS.getDataShardCount(); i++) {
+			if (!shardPresent[i]) {
+				parityRS.decodeMissing(shards, shardPresent, 0, shardSize);
+				break;
+			}
+		}
+	}
+
+	private static void emptyDecrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards) {}
+	
+	private static void decrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards) {
+		secrecyRS.encodeParity(secrecyShards, 0, shardSize);
+	}
+
+	@FunctionalInterface
+	private static interface DecodeInterface {
+		void decodeMissing(ReedSolomon parityRS, boolean[] shardPresent, byte[][] shards, int shardSize);
+	}
+
+	@FunctionalInterface
+	private static interface DecryptInterface {
+		void decrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards);
 	}
 }

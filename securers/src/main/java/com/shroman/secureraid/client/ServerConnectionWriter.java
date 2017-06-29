@@ -14,12 +14,11 @@ import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
 
 import com.shroman.secureraid.common.Message;
-import com.shroman.secureraid.common.Response;
 
-class ServerConnection extends Thread implements Connection {
+class ServerConnectionWriter extends Thread implements Connection {
 	private String host;
 	private int port;
-	private BlockingQueue<Message> messages; 
+	private BlockingQueue<Message> messages;
 //	private ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
 	private Socket socket;
 	private int serverId;
@@ -27,7 +26,7 @@ class ServerConnection extends Thread implements Connection {
 	private Logger logger;
 	private boolean die = false;
 
-	ServerConnection(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse, Config config) throws UnknownHostException, IOException {
+	ServerConnectionWriter(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse, Config config) throws UnknownHostException, IOException {
 		this.serverId = serverId;
 		this.host = host;
 		this.port = port;
@@ -37,7 +36,6 @@ class ServerConnection extends Thread implements Connection {
         socket.getOutputStream().write(clientId);
         socket.getOutputStream().write(serverId);
 		logger = Logger.getLogger("ServerConnection"+serverId);
-//		logger.info("Hots:" + host + " port:" + port + " serever id: " + serverId);
 	}
 
 	@Override
@@ -47,16 +45,19 @@ class ServerConnection extends Thread implements Connection {
 		try {
 			output = new ObjectOutputStream(socket.getOutputStream());
 			input = new ObjectInputStream(socket.getInputStream());
+			ServerConnectionReader reader = new ServerConnectionReader(serverId, pushResponse, input);
+			reader.start();
 			while (!die) {
 				try {
-					write(output, input);
+					write(output);
 				} catch (InterruptedException | ClassNotFoundException e) {
 					e.printStackTrace();
 				}
 			}
+			reader.join();
 		} catch (EOFException e) {
 			// This is okay the connection ended.
-		} catch (IOException e) {
+		} catch (InterruptedException | IOException e) {
 			System.out.println("Connection Failed : " + this);
 			System.out.println("Something went wrong: " + e.getMessage());
 			e.printStackTrace();
@@ -89,27 +90,17 @@ class ServerConnection extends Thread implements Connection {
 		return host + "::" + port;
 	}
 
-	private void write(ObjectOutputStream output, ObjectInputStream input)
-			throws IOException, InterruptedException, ClassNotFoundException {
+	private void write(ObjectOutputStream output) throws IOException, InterruptedException, ClassNotFoundException {
 		Message message = null;
 		while ((message = messages.poll()) != null) {
 			if (message == Message.KILL) {
 				die = true;
+				output.writeUnshared(message);
 				return;
 			}
-			int length = message.getDataLength();
-			StopWatch fullStopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), length + ",FULL", logger);
-			StopWatch stopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), length + ",SEND", logger);
+			StopWatch stopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), message.getDataLength() + ",SEND", logger);
 			output.writeUnshared(message);
 			stopWatch.stop();
-			stopWatch.start(Integer.toString(message.getChunkId()), length + ",RECIEVE");
-			Response response = (Response) input.readUnshared();
-			stopWatch.stop();
-			fullStopWatch.stop();
-			if (!response.isSuccess()) {
-				System.err.println("something wrong");
-			}
-			pushResponse.push(response, serverId);
 			output.reset();
 		}
 	}

@@ -23,7 +23,7 @@ public class ByteInputOutputExpCodingLoop extends CodingLoopBase {
                 for (int iOutput = 0; iOutput < outputCount; iOutput++) {
                     final byte[] outputShard = outputs[iOutput];
                     final byte[] matrixRow = matrixRows[iOutput];
-                    outputShard[iByte] = Galois.multiply(matrixRow[iInput], inputByte);
+                    outputShard[iByte] ^= Galois.multiply(matrixRow[iInput], inputByte);
                 }
             }
 

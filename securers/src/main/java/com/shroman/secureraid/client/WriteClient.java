@@ -66,7 +66,7 @@ public class WriteClient {
 			}
 		} catch (IllegalArgumentException e) {
 			System.out.println("Please call the client with the following arguments:\n"
-					+ "operation_type codec_name k r z random_key");
+					+ "operation_type codec_name k r z random_name random_key");
 		} catch (ParserConfigurationException | SAXException | IOException | XMLParsingException e) {
 			throw new RuntimeException("Unable to load config XML file(" + CONFIG_XML + ")\n" + e.getMessage());
 		} finally {
@@ -234,7 +234,7 @@ public class WriteClient {
 		Iterator<Getter> iterator = xmlGetter.getIterator("connections", "server");
 		for (int i = 0; i < size; i++) {
 			Getter getter = iterator.next();
-			ServerConnection serverConnection = new ServerConnection(i, clientId, getter.getAttribute("host"),
+			ServerConnectionWriter serverConnection = new ServerConnectionWriter(i, clientId, getter.getAttribute("host"),
 					getter.getIntAttribute("port"), reader, config);
 			servers.add(serverConnection);
 			serverConnection.start();
@@ -274,8 +274,9 @@ public class WriteClient {
 				int combinedId = reader.addChecksum(stripeId, itemId, dataShards);
 
 				byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards);
+				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length) + ",ENC");
 				sendEncoded(encodedShards, itemId, stripeId);
-				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length));
+				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length) + ",BARRIER");
 			}
 		});
 		return bytesRead;

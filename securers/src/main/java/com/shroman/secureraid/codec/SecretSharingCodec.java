@@ -45,7 +45,7 @@ public class SecretSharingCodec extends SecureCodec {
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
 		byte[][] shares = new byte[getSize()][];
-		SecretSplit split = new SecretSplit(getSize(), getSecrecyShardsNum(), data, shareIndexes);
+		SecretSplit split = new SecretSplit(getSize(), getSecrecyShardsNum(), data, shareIndexes, getRandom());
 		for (int i = 0; i < getSize(); i++) {
 			shares[i] = split.getShare(i);
 		}

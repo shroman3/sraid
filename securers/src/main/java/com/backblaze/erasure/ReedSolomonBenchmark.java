@@ -22,8 +22,8 @@ import java.util.Random;
  */
 public class ReedSolomonBenchmark {
 
-    private static final int DATA_COUNT = 17;
-    private static final int PARITY_COUNT = 3;
+    private static final int DATA_COUNT = 4;
+    private static final int PARITY_COUNT = 2;
     private static final int TOTAL_COUNT = DATA_COUNT + PARITY_COUNT;
     private static final int BUFFER_SIZE = 200 * 1000;
     private static final int PROCESSOR_CACHE_SIZE = 10 * 1024 * 1024;

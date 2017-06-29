@@ -23,7 +23,7 @@ public class ByteOutputInputTableCodingLoop extends CodingLoopBase {
                 for (int iInput = 0; iInput < inputCount; iInput++) {
                     value ^= table[matrixRow[iInput] & 0xFF][inputs[iInput][iByte] & 0xFF];
                 }
-                outputs[iOutput][iByte] = (byte) value;
+                outputs[iOutput][iByte] ^= (byte) value;
             }
         }
     }
