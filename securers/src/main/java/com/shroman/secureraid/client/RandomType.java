@@ -1,10 +1,14 @@
 package com.shroman.secureraid.client;
 
 import java.math.BigInteger;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+
+import org.uncommons.maths.random.AESCounterRNG;
 
 import com.shroman.secureraid.utils.Utils;
 
@@ -15,6 +19,33 @@ public enum RandomType {
 		@Override
 		Random buildRandom(String randomKey) {
 			return new SecureRandom(randomKey.getBytes());
+		}
+	},
+	SHA1("SHA", "SHA1") {
+		@Override
+		Random buildRandom(String randomKey) {
+			try {
+				SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
+				secureRandom.setSeed(randomKey.getBytes());
+				return secureRandom;
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+				System.out.println("Problem creating SHA1PRNG");
+				return new SecureRandom(randomKey.getBytes());
+			}
+		}
+	},
+	AES("AES") {
+		@Override
+		Random buildRandom(String randomKey) {
+			try {
+				AESCounterRNG aesRandom = new AESCounterRNG(randomKey.getBytes());
+				return aesRandom;
+			} catch (GeneralSecurityException e) {
+				e.printStackTrace();
+				System.out.println("Problem creating AESPRNG");
+				return new SecureRandom(randomKey.getBytes());
+			}
 		}
 	},
 	XOROSHIRO("XOR", "OSHIRO", "XOROSHIRO") {

@@ -4,4 +4,5 @@ public enum ResponseType {
 	READ,
 	WRITE,
 	ERROR,
+	KILL
 }

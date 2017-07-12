@@ -8,18 +8,19 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
 
 import com.shroman.secureraid.common.Message;
+import com.shroman.secureraid.common.MessageType;
 
 class ServerConnectionWriter extends Thread implements Connection {
 	private String host;
 	private int port;
 	private BlockingQueue<Message> messages;
-//	private ConcurrentLinkedQueue<Message> messages = new ConcurrentLinkedQueue<>();
 	private Socket socket;
 	private int serverId;
 	private PushResponseInterface pushResponse;
@@ -31,10 +32,12 @@ class ServerConnectionWriter extends Thread implements Connection {
 		this.host = host;
 		this.port = port;
 		this.pushResponse = pushResponse;
-		messages = new ArrayBlockingQueue<>(config.getServerConnectionQueueSize());
+		int queueSize = config.getServerConnectionQueueSize();
+		messages = new ArrayBlockingQueue<>(queueSize);
 		socket = new Socket(host, port);
-        socket.getOutputStream().write(clientId);
-        socket.getOutputStream().write(serverId);
+		socket.getOutputStream().write(clientId);
+		socket.getOutputStream().write(queueSize);
+//        socket.getOutputStream().write(serverId);
 		logger = Logger.getLogger("ServerConnection"+serverId);
 	}
 
@@ -91,17 +94,21 @@ class ServerConnectionWriter extends Thread implements Connection {
 	}
 
 	private void write(ObjectOutputStream output) throws IOException, InterruptedException, ClassNotFoundException {
-		Message message = null;
-		while ((message = messages.poll()) != null) {
-			if (message == Message.KILL) {
-				die = true;
+		while (true) {
+			try {
+				Message message = messages.poll(Integer.MAX_VALUE,TimeUnit.SECONDS);
+				if (message == null || message.getType() == MessageType.KILL) {
+					die = true;
+					output.writeUnshared(message);
+					return;
+				}
+				StopWatch stopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), message.getDataLength() + ",SEND", logger);
 				output.writeUnshared(message);
-				return;
+				stopWatch.stop();
+				output.reset();
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
-			StopWatch stopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), message.getDataLength() + ",SEND", logger);
-			output.writeUnshared(message);
-			stopWatch.stop();
-			output.reset();
 		}
 	}
 }

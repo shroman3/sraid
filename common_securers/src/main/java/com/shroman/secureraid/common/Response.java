@@ -5,6 +5,8 @@ import java.io.Serializable;
 public class Response implements Serializable {
 	private static final long serialVersionUID = 5088480449520246664L;
 
+	public static final Response KILL = new Response(ResponseType.KILL);
+
 	private ResponseType type;
 	private byte[] data = null;
 	private int objectId = -1;

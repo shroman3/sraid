@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Server {
-	private static Map<Integer, ClientConnection> clientsMap = new HashMap<Integer, ClientConnection>();
+	private static Map<Integer, ClientConnectionReader> clientsMap = new HashMap<Integer, ClientConnectionReader>();
 	public static void main(String[] args) {
 		int serverId = Integer.parseInt(args[0]);
 		Path serverPath = Paths.get(args[0]);
@@ -24,7 +24,7 @@ public class Server {
 	    	connectionSocket = new ServerSocket(port);
 	        while(true){
 	            Socket socket = connectionSocket.accept();
-	            ClientConnection clientConnection = new ClientConnection(serverPath, socket);
+	            ClientConnectionReader clientConnection = new ClientConnectionReader(serverPath, socket);
 	            clientsMap.put(clientConnection.getClientId(), clientConnection);
 	            clientConnection.start();
 	        }
