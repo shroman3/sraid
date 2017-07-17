@@ -89,6 +89,22 @@ public enum OperationType {
 			client.finalizeReader();
 		}
 	},
+	DEG_RAND_CHUNK_READ("RCR", "RC", "RR") {
+		@Override
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+			client.initRandomChunkReader();
+		}
+
+		@Override
+		public void run(String fileName, WriteClient client) throws IOException {
+			client.deg2ReadFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
+			client.finalizeReader();
+		}
+	},
 	CLEAN("C", "CLEAN") {
 		@Override
 		public void run(Scanner inputFileScanner, WriteClient client) throws IOException {

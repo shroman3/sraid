@@ -22,14 +22,14 @@ import java.util.Random;
  */
 public class ReedSolomonBenchmark {
 
-    private static final int DATA_COUNT = 4;
-    private static final int PARITY_COUNT = 2;
-    private static final int TOTAL_COUNT = DATA_COUNT + PARITY_COUNT;
     private static final int BUFFER_SIZE = 200 * 1000;
     private static final int PROCESSOR_CACHE_SIZE = 10 * 1024 * 1024;
     private static final int TWICE_PROCESSOR_CACHE_SIZE = 2 * PROCESSOR_CACHE_SIZE;
-    private static final int NUMBER_OF_BUFFER_SETS = TWICE_PROCESSOR_CACHE_SIZE / DATA_COUNT / BUFFER_SIZE + 1;
-
+    
+    private final int NUMBER_OF_BUFFER_SETS;// = TWICE_PROCESSOR_CACHE_SIZE / DATA_COUNT / BUFFER_SIZE + 1;
+    private final int DATA_COUNT;// = 4;
+    private final int PARITY_COUNT;// = 2;
+    private final int TOTAL_COUNT; //= DATA_COUNT + PARITY_COUNT;
     private static final long MEASUREMENT_DURATION = 2 * 1000;
 
     private static final Random random = new Random();
@@ -37,12 +37,20 @@ public class ReedSolomonBenchmark {
     private int nextBuffer = 0;
 
     public static void main(String [] args) {
-        (new ReedSolomonBenchmark()).run();
+    	int DATA_COUNT = Integer.parseInt(args[0]);
+    	int PARITY_COUNT = Integer.parseInt(args[1]);
+        (new ReedSolomonBenchmark(DATA_COUNT, PARITY_COUNT)).run();
     }
-
+    
+    ReedSolomonBenchmark(int data, int parity) {
+    	DATA_COUNT = data;
+    	PARITY_COUNT = parity;
+    	TOTAL_COUNT = DATA_COUNT + PARITY_COUNT;
+    	NUMBER_OF_BUFFER_SETS = TWICE_PROCESSOR_CACHE_SIZE / DATA_COUNT / BUFFER_SIZE + 1;
+    }
+    
     public void run() {
-
-        System.out.println("preparing...");
+        //System.out.println("preparing...");
         final BufferSet [] bufferSets = new BufferSet [NUMBER_OF_BUFFER_SETS];
         for (int iBufferSet = 0; iBufferSet < NUMBER_OF_BUFFER_SETS; iBufferSet++) {
             bufferSets[iBufferSet] = new BufferSet();
@@ -51,21 +59,21 @@ public class ReedSolomonBenchmark {
 
         List<String> summaryLines = new ArrayList<String>();
         StringBuilder csv = new StringBuilder();
-        csv.append("Outer,Middle,Inner,Multiply,Encode,Check\n");
+        csv.append("K,R,Outer,Middle,Inner,Multiply,Encode,Check\n");
         for (CodingLoop codingLoop : CodingLoop.ALL_CODING_LOOPS) {
             Measurement encodeAverage = new Measurement();
             {
                 final String testName = codingLoop.getClass().getSimpleName() + " encodeParity";
-                System.out.println("\nTEST: " + testName);
+                //System.out.println("\nTEST: " + testName);
                 ReedSolomon codec = new ReedSolomon(DATA_COUNT, PARITY_COUNT, codingLoop);
-                System.out.println("    warm up...");
+                //System.out.println("    warm up...");
                 doOneEncodeMeasurement(codec, bufferSets);
                 doOneEncodeMeasurement(codec, bufferSets);
-                System.out.println("    testing...");
+                //System.out.println("    testing...");
                 for (int iMeasurement = 0; iMeasurement < 10; iMeasurement++) {
                     encodeAverage.add(doOneEncodeMeasurement(codec, bufferSets));
                 }
-                System.out.println(String.format("\nAVERAGE: %s", encodeAverage));
+                //System.out.println(String.format("\nAVERAGE: %s", encodeAverage));
                 summaryLines.add(String.format("    %-45s %s", testName, encodeAverage));
             }
             // The encoding test should have filled all of the buffers with
@@ -73,18 +81,19 @@ public class ReedSolomonBenchmark {
             Measurement checkAverage = new Measurement();
             {
                 final String testName = codingLoop.getClass().getSimpleName() + " isParityCorrect";
-                System.out.println("\nTEST: " + testName);
+                //System.out.println("\nTEST: " + testName);
                 ReedSolomon codec = new ReedSolomon(DATA_COUNT, PARITY_COUNT, codingLoop);
-                System.out.println("    warm up...");
+                //System.out.println("    warm up...");
                 doOneEncodeMeasurement(codec, bufferSets);
                 doOneEncodeMeasurement(codec, bufferSets);
-                System.out.println("    testing...");
+                //System.out.println("    testing...");
                 for (int iMeasurement = 0; iMeasurement < 10; iMeasurement++) {
                     checkAverage.add(doOneCheckMeasurement(codec, bufferSets, tempBuffer));
                 }
-                System.out.println(String.format("\nAVERAGE: %s", checkAverage));
+                //System.out.println(String.format("\nAVERAGE: %s", checkAverage));
                 summaryLines.add(String.format("    %-45s %s", testName, checkAverage));
             }
+            csv.append(DATA_COUNT).append(",").append(PARITY_COUNT).append(",");
             csv.append(codingLoopNameToCsvPrefix(codingLoop.getClass().getSimpleName()));
             csv.append(encodeAverage.getRate());
             csv.append(",");
@@ -95,10 +104,10 @@ public class ReedSolomonBenchmark {
         System.out.println("\n");
         System.out.println(csv.toString());
 
-        System.out.println("\nSummary:\n");
-        for (String line : summaryLines) {
-            System.out.println(line);
-        }
+//        System.out.println("\nSummary:\n");
+//        for (String line : summaryLines) {
+//            System.out.println(line);
+//        }
     }
 
     private Measurement doOneEncodeMeasurement(ReedSolomon codec, BufferSet[] bufferSets) {
@@ -119,7 +128,7 @@ public class ReedSolomonBenchmark {
         double seconds = ((double)encodingTime) / 1000.0;
         double megabytes = ((double)bytesEncoded) / 1000000.0;
         Measurement result = new Measurement(megabytes, seconds);
-        System.out.println(String.format("        %s passes, %s", passesCompleted, result));
+//        System.out.println(String.format("        %s passes, %s", passesCompleted, result));
         return result;
     }
 
@@ -145,7 +154,7 @@ public class ReedSolomonBenchmark {
         double seconds = ((double)checkingTime) / 1000.0;
         double megabytes = ((double)bytesChecked) / 1000000.0;
         Measurement result = new Measurement(megabytes, seconds);
-        System.out.println(String.format("        %s passes, %s", passesCompleted, result));
+//        System.out.println(String.format("        %s passes, %s", passesCompleted, result));
         return result;
     }
 
@@ -188,7 +197,7 @@ public class ReedSolomonBenchmark {
     }
 
 
-    private static class BufferSet {
+    private class BufferSet {
 
         public byte [] [] buffers;
 

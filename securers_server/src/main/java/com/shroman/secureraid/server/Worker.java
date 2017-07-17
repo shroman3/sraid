@@ -20,9 +20,11 @@ public class Worker extends Thread {
 	private Logger logger;
 	private Path clientPath;
 	private ClientConnectionWriter writer;
+	private int serverId;
 	
-	Worker(Logger logger, Path clientPath, ClientConnectionWriter writer, int queueSize) {
-		this.logger = logger;
+	Worker(int serverId, Path clientPath, ClientConnectionWriter writer, int queueSize) {
+		this.serverId = serverId;
+		this.logger = Logger.getLogger("ClientWork");
 		this.clientPath = clientPath;
 		this.writer = writer;
 		messages = new ArrayBlockingQueue<>(queueSize);
@@ -50,7 +52,7 @@ public class Worker extends Thread {
 					e.printStackTrace();
 				}
 				int totalLength = message.getDataLength()+response.getDataLength();
-				stopWatch.stop(Integer.toString(message.getChunkId()), totalLength + ",EXEC");
+				stopWatch.stop(Integer.toString(message.getChunkId()), totalLength + "," + serverId);
 				writer.addResponse(response);
 			} catch (InterruptedException e) {
 				e.printStackTrace();

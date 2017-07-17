@@ -17,9 +17,11 @@ public class ClientConnectionWriter extends Thread {
 	private BlockingQueue<Response> responses;
 	private Logger logger;
 	private ObjectOutputStream output;
+	private int serverId;
 	
-	ClientConnectionWriter(Logger logger, ObjectOutputStream output, int queueSize) {
-		this.logger = logger;
+	ClientConnectionWriter(int serverId, ObjectOutputStream output, int queueSize) {
+		this.serverId = serverId;
+		this.logger = Logger.getLogger("ClientWriteStream");
 		this.output = output;
 		responses = new ArrayBlockingQueue<>(queueSize);
 	}
@@ -32,7 +34,7 @@ public class ClientConnectionWriter extends Thread {
 				if (response == null || response.getType() == ResponseType.KILL) {
 					break;
 				}
-				StopWatch stopWatch = new Log4JStopWatch(Integer.toString(response.getChunkId()), response.getDataLength()+ ",SEND", logger);
+				StopWatch stopWatch = new Log4JStopWatch(Integer.toString(response.getChunkId()), response.getDataLength()+ "," + serverId, logger);
 				try {
 					output.writeUnshared(response);
 					output.reset();

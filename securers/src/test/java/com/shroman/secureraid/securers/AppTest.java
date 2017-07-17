@@ -1,7 +1,9 @@
 package com.shroman.secureraid.securers;
 
+import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
 
+import com.shroman.secureraid.client.RandomType;
 
 import junit.framework.Test;
 import junit.framework.TestCase;
@@ -32,6 +34,7 @@ public class AppTest extends TestCase {
 	 * Rigourous Test :-)
 	 */
 	public void testApp() {
+		
 //		ReedSolomon secure = new ReedSolomon(2, 4, new InputOutputByteTableCodingLoop());
 //		ReedSolomon parity = new ReedSolomon(4, 2, new InputOutputByteTableCodingLoop());
 //
@@ -62,21 +65,27 @@ public class AppTest extends TestCase {
 //		parity.decodeMissing(data, shardsPresent, 0, 1);
 //		assertTrue(data[1][0] == 127);
 
-		final ArrayBlockingQueue<Integer> blockingQueue = new ArrayBlockingQueue<>(2);
-		new Thread(new Runnable() {
-			public void run() {
-				for (int i = 0; i < 5; i++) {
-					try {
-						blockingQueue.put(i);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-				}
-			}
-		}).start();
-		
-		while (true) {
-			System.out.println(blockingQueue.remove());
+//		final ArrayBlockingQueue<Integer> blockingQueue = new ArrayBlockingQueue<>(2);
+//		new Thread(new Runnable() {
+//			public void run() {
+//				for (int i = 0; i < 5; i++) {
+//					try {
+//						blockingQueue.put(i);
+//					} catch (InterruptedException e) {
+//						e.printStackTrace();
+//					}
+//				}
+//			}
+//		}).start();
+//		
+//		while (true) {
+//			System.out.println(blockingQueue.remove());
+//		}
+	}
+	
+	public void testRandomGenerators() {
+		for (RandomType random : RandomType.values()) {
+			random.buildRandom("randomKey");
 		}
 	}
 }

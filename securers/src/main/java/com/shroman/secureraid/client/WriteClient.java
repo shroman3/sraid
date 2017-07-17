@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +53,8 @@ public class WriteClient {
 	private OperationType operation;
 	private Config config;
 	private XMLGetter xmlGetter;
+	private int serversNum;
+	private int stepSize;
 
 	public static void main(String[] args) {
 		Scanner inputFileScanner = null;
@@ -63,10 +66,11 @@ public class WriteClient {
 				client.run(inputFileScanner);
 			} catch (Exception e) {
 				System.out.println("Something went wrong: " + e.getMessage());
+				client.finalizeServerConnections();
 			}
 		} catch (IllegalArgumentException e) {
 			System.out.println("Please call the client with the following arguments:\n"
-					+ "operation_type codec_name k r z random_name random_key");
+					+ "operation_type codec_name k r z random_name random_key servers_num step_size");
 		} catch (ParserConfigurationException | SAXException | IOException | XMLParsingException e) {
 			throw new RuntimeException("Unable to load config XML file(" + CONFIG_XML + ")\n" + e.getMessage());
 		} finally {
@@ -76,8 +80,10 @@ public class WriteClient {
 		}
 	}
 
-	private WriteClient(Codec codec, OperationType operation, XMLGetter xmlGetter)
+	private WriteClient(Codec codec, OperationType operation, int serversNum, int stepSize, XMLGetter xmlGetter)
 			throws XMLParsingException, UnknownHostException, IOException {
+		this.serversNum = serversNum;
+		this.stepSize = stepSize;
 		this.xmlGetter = xmlGetter;
 		this.codec = codec;
 		logger = Logger.getLogger("Encode");
@@ -85,25 +91,30 @@ public class WriteClient {
 		clientId = xmlGetter.getIntField("client", "id");
 		stripeSize = xmlGetter.getIntField("client", "stripe_size") * BYTES_IN_MEGABYTE;
 		shardSize = stripeSize / codec.getDataShardsNum();
-		reader = new ReadClient(codec, config);
+		reader = new ReadClient(codec, config, serversNum, stepSize);
 		this.operation = operation;
 	}
 
 	public void initEncoder() throws UnknownHostException, XMLParsingException, IOException {
 		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
-		initMockConnections(codec.getSize());
+		initMockConnections(serversNum);
 	}
 
 	public void initWriter() throws UnknownHostException, XMLParsingException, IOException {
 		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
-		initServerConnections(xmlGetter, codec.getSize());
+		initServerConnections(xmlGetter, serversNum);
 	}
 
 	void initReader() throws ClassNotFoundException, IOException, XMLParsingException {
 		loadItemsMap();
 		reader.loadChecksums();
 		reader.start();
-		initServerConnections(xmlGetter, codec.getSize());
+		initServerConnections(xmlGetter, serversNum);
+	}
+
+	void initRandomChunkReader() throws ClassNotFoundException, IOException, XMLParsingException {
+		initReader();
+		reader.setShouldPresent(codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum() + 1);
 	}
 
 	void finalizeEncoder() throws InterruptedException, IOException {
@@ -139,34 +150,63 @@ public class WriteClient {
 		in.close();
 	}
 
+	void randomChunkReadFile(String fileName) {
+		Item item = itemsMap.get(fileName);
+		Random random = new Random(12345678);
+		for (int i = 0; i < item.getStripesNumber() / 4; i++) {
+			int stripe = random.nextInt(item.getStripesNumber());
+			int chunk = random.nextInt(codec.getDataShardsNum());
+			reader.readStripe(item, stripe);
+			int secretChunks = codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum();
+			int stripeStep = ((stripe + item.getId()) * stepSize) % serversNum;
+			for (int j = 0; j < secretChunks; j++) {
+				int serverId = (j + stripeStep) % serversNum;
+				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+			}
+			int serverId = (chunk + stripeStep) % serversNum;
+			servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+		}
+	}
+
 	void degReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
-		reader.readFile(item);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
-			for (int j = 1; j < codec.getSize() - codec.getParityShardsNum() + 1; j++) {
-				servers.get((j + i + item.getId()) % codec.getSize())
-						.addMessage(new Message(MessageType.READ, null, item.getId(), i));
+			reader.readStripe(item,i);
+			int j = 0;
+			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
+			while (j < codec.getSize() - codec.getParityShardsNum()) {
+				int serverId = (j + stripeStep) % serversNum;
+				if (serverId != 0) {
+					servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
+					j++;
+				}
 			}
 		}
 	}
 
 	void deg2ReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
-		reader.readFile(item);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
-			for (int j = 2; j < codec.getSize() - codec.getParityShardsNum(); j++) {
-				servers.get((j + i + item.getId()) % codec.getSize())
-						.addMessage(new Message(MessageType.READ, null, item.getId(), i));
+			reader.readStripe(item,i);
+			int j = 0;
+			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
+			while (j < codec.getSize() - codec.getParityShardsNum()) {
+				int serverId = (j + stripeStep) % serversNum;
+				if (serverId > 1) {
+					servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
+					j++;
+				}
 			}
 		}
 	}
 
 	void readFile(String fileName) {
 		Item item = itemsMap.get(fileName);
-		reader.readFile(item);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
+			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
+			reader.readStripe(item, i);
 			for (int j = 0; j < codec.getSize() - codec.getParityShardsNum(); j++) {
-				int serverId = (j + i + item.getId()) % codec.getSize();
+				int serverId = (j + stripeStep) % serversNum;
 				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
@@ -224,7 +264,7 @@ public class WriteClient {
 
 	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
 		for (int i = 0; i < encodedShards.length; i++) {
-			int serverId = (i + objectId + chunkId) % codec.getSize();
+			int serverId = (i + (objectId + chunkId) * stepSize) % codec.getSize();
 			servers.get(serverId).addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
 		}
 	}
@@ -234,8 +274,8 @@ public class WriteClient {
 		Iterator<Getter> iterator = xmlGetter.getIterator("connections", "server");
 		for (int i = 0; i < size; i++) {
 			Getter getter = iterator.next();
-			ServerConnectionWriter serverConnection = new ServerConnectionWriter(i, clientId, getter.getAttribute("host"),
-					getter.getIntAttribute("port"), reader, config);
+			ServerConnectionWriter serverConnection = new ServerConnectionWriter(i, clientId,
+					getter.getAttribute("host"), getter.getIntAttribute("port"), reader, config);
 			servers.add(serverConnection);
 			serverConnection.start();
 		}
@@ -274,9 +314,8 @@ public class WriteClient {
 				int combinedId = reader.addChecksum(stripeId, itemId, dataShards);
 
 				byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards);
-				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length) + ",ENC");
+				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length));
 				sendEncoded(encodedShards, itemId, stripeId);
-				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length) + ",BARRIER");
 			}
 		});
 		return bytesRead;
@@ -288,8 +327,8 @@ public class WriteClient {
 	}
 
 	private void finalizeServerConnections() {
-		for (int i = 0; i < codec.getSize(); i++) {
-			servers.get(i).addMessage(Message.KILL);
+		for (Connection server : servers) {
+			server.addMessage(Message.KILL);
 		}
 	}
 
@@ -305,7 +344,7 @@ public class WriteClient {
 
 	private static WriteClient buildClient(String[] args, XMLGetter xmlGetter)
 			throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {
-		Utils.validateArraySize(args, 7, "Arguments");
+		Utils.validateArraySize(args, 9, "Arguments");
 		try {
 			String operationType = args[0];
 			String codecName = args[1];
@@ -314,8 +353,10 @@ public class WriteClient {
 			int z = Integer.parseInt(args[4]);
 			String randomName = args[5];
 			String randomKey = args[6];
+			int serversNum = Integer.parseInt(args[7]);
+			int stepSize = Integer.parseInt(args[8]);
 			return new WriteClient(CodecType.getCodecFromArgs(codecName, k, r, z, randomName, randomKey),
-					OperationType.getOperationByName(operationType), xmlGetter);
+					OperationType.getOperationByName(operationType), serversNum, stepSize, xmlGetter);
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("k,r,z should be numbers: " + e.getMessage());
 		}

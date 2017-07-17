@@ -22,7 +22,7 @@ class ServerConnectionReader extends Thread {
 		this.serverId = serverId;
 		this.pushResponse = pushResponse;
 		this.input = input;
-		logger = Logger.getLogger("ServerConnection"+serverId);
+		logger = Logger.getLogger("ServerReadStream");
 	}
 
 	@Override
@@ -49,7 +49,7 @@ class ServerConnectionReader extends Thread {
 			StopWatch stopWatch = new Log4JStopWatch(logger);
 			Object object = input.readUnshared();
 			Response response = (Response) object;
-			stopWatch.stop(Integer.toString(response.getChunkId()), response.getDataLength() + ",RECIEVE");
+			stopWatch.stop(Integer.toString(response.getChunkId()), response.getDataLength() + "," + serverId);
 			
 			if (!response.isSuccess()) {
 				System.err.println("something wrong");

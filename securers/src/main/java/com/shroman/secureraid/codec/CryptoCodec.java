@@ -2,7 +2,7 @@ package com.shroman.secureraid.codec;
 
 import org.bouncycastle.crypto.Digest;
 
-import com.backblaze.erasure.InputOutputByteTableCodingLoop;
+import com.backblaze.erasure.OutputInputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 import com.shroman.secureraid.utils.Utils;
 
@@ -44,7 +44,7 @@ public abstract class CryptoCodec extends Codec {
 		super(other);
 		key = other.key;
 		if (getParityShardsNum() > 0) {			
-			parityRS = new ReedSolomon(getDataShardsNum(), getParityShardsNum(), new InputOutputByteTableCodingLoop());
+			parityRS = new ReedSolomon(getDataShardsNum(), getParityShardsNum(), new OutputInputByteTableCodingLoop());
 		}
 	}
 	

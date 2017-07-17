@@ -37,8 +37,8 @@ class ServerConnectionWriter extends Thread implements Connection {
 		socket = new Socket(host, port);
 		socket.getOutputStream().write(clientId);
 		socket.getOutputStream().write(queueSize);
-//        socket.getOutputStream().write(serverId);
-		logger = Logger.getLogger("ServerConnection"+serverId);
+        socket.getOutputStream().write(serverId);
+		logger = Logger.getLogger("ServerWriteStream");
 	}
 
 	@Override
@@ -102,7 +102,7 @@ class ServerConnectionWriter extends Thread implements Connection {
 					output.writeUnshared(message);
 					return;
 				}
-				StopWatch stopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), message.getDataLength() + ",SEND", logger);
+				StopWatch stopWatch = new Log4JStopWatch(Integer.toString(message.getChunkId()), message.getDataLength() + "," + serverId, logger);
 				output.writeUnshared(message);
 				stopWatch.stop();
 				output.reset();

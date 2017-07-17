@@ -21,15 +21,15 @@ public class ClientConnectionReader extends Thread {
 	private int id;
 	private Path clientPath;
 	private Logger logger;
-//	private int serverId;
+	private int serverId;
 	private int queueSize;
 
 	public ClientConnectionReader(Path serverPath, Socket socket) throws IOException {
 		this.socket = socket;
 		id = socket.getInputStream().read();
 		queueSize = socket.getInputStream().read();
-//		serverId = socket.getInputStream().read();
-		logger = Logger.getLogger("ClientConnection");
+		serverId = socket.getInputStream().read();
+		logger = Logger.getLogger("ClientReadStream");
 		// logger.info("Connected with server id: " + serverId);
 		this.clientPath = Paths.get(serverPath.toString(), Integer.toString(id));
 		Files.createDirectories(clientPath);
@@ -39,9 +39,9 @@ public class ClientConnectionReader extends Thread {
 	public void run() {
 		try {
 			ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
-			ClientConnectionWriter writer = new ClientConnectionWriter(logger,
+			ClientConnectionWriter writer = new ClientConnectionWriter(serverId,
 					new ObjectOutputStream(socket.getOutputStream()), queueSize);
-			Worker worker = new Worker(logger, clientPath, writer, queueSize);
+			Worker worker = new Worker(serverId, clientPath, writer, queueSize);
 			writer.start();
 			worker.start();
 
@@ -51,7 +51,7 @@ public class ClientConnectionReader extends Thread {
 				try {
 					StopWatch stopWatch = new Log4JStopWatch(logger);
 					message = (Message) input.readUnshared();
-					stopWatch.stop(Integer.toString(message.getChunkId()), length + ",RECIEVE");
+					stopWatch.stop(Integer.toString(message.getChunkId()), length + "," + serverId);
 					if (message == null || message.getType() == MessageType.KILL) {
 						break;
 					}

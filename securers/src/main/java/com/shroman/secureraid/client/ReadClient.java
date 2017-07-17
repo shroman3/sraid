@@ -37,13 +37,19 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private ExecutorService executer;
 	private int shouldPresent;
 	private Logger decodeLogger;
+	private Logger stripeLogger;
 	private Config config;
+	private int serversNum;
+	private int stepSize;
 
-	ReadClient(Codec codec, Config config) {
+	ReadClient(Codec codec, Config config, int serversNum, int stepSize) {
+		this.serversNum = serversNum;
+		this.stepSize = stepSize;
 		this.codec = codec;
 		this.config = config;
 		shouldPresent = codec.getSize() - codec.getParityShardsNum();
 		decodeLogger = Logger.getLogger("Decode");
+		stripeLogger = Logger.getLogger("Stripe");
 	}
 
 	@Override
@@ -60,7 +66,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 				if (chunksNum == codec.getSize()) {
 					chunksMap.remove(stripeId);
 					Long timestamp = timestampMap.remove(stripeId);
-					decodeLogger.info(Utils.buildLogMessage(timestamp, stripeId, ""));
+					stripeLogger.info(Utils.buildLogMessage(timestamp, stripeId, ""));
 				} else {
 					chunksMap.put(stripeId, chunksNum);
 				}
@@ -69,7 +75,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			synchronized (mutex) {
 				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
 				byte[][] responses = readMap.get(stripeId);
-				int chunkId = (((serverId - response.getChunkId() - response.getObjectId()) % codec.getSize())
+				int chunkId = (((serverId - (response.getChunkId() + response.getObjectId()) * stepSize) % serversNum)
 						+ codec.getSize()) % codec.getSize();
 				responses[chunkId] = response.getData();
 				Integer chunksNum = chunksMap.get(stripeId);
@@ -83,12 +89,14 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		}
 	}
 
-	void readFile(Item item) {
-		if (item != null) {
-			for (int i = 0; i < item.getStripesNumber(); i++) {
-				readMap.put(calcStripeId(item.getId(), i), new byte[codec.getSize()][]);
-			}
-		}
+	public void setShouldPresent(int shouldPresent) {
+		this.shouldPresent = shouldPresent;
+	}
+
+	void readStripe(Item item, int stripeNum) {
+		int stripeId = calcStripeId(item.getId(), stripeNum);
+		readMap.put(stripeId, new byte[codec.getSize()][]);
+		timestampMap.put(stripeId, System.currentTimeMillis());
 	}
 
 	void die() {
@@ -149,18 +157,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		executer.execute(new Runnable() {
 			@Override
 			public void run() {
-				StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(chunks[0].length),
-						decodeLogger);
-				byte[][] decode = codec.decode(chunksPresent(chunks), chunks, chunks[0].length);
-				long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
-				long[] origChecksum = checksumMap.get(chunkId);
-				for (int i = 0; i < checksum.length; i++) {
-					if (checksum[i] != origChecksum[i]) {
-						System.err.println("###\nChecksum isn't compatible stripeId: " + chunkId + "\n###");
-						break;
-					}
-				}
-				stopWatch.stop();
+				decode(chunkId, chunks);
 			}
 		});
 		return true;
@@ -185,9 +182,29 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		CRC32 crc = new CRC32();
 		long[] checksums = new long[dataShards.length];
 		for (int i = 0; i < dataShards.length; i++) {
-			crc.update(dataShards[i], 0, size);
-			checksums[i] = crc.getValue();
+			if (dataShards[i] == null) {
+				checksums[i] = -1;
+			} else {
+				crc.update(dataShards[i], 0, size);
+				checksums[i] = crc.getValue();
+			}
 		}
 		return checksums;
+	}
+
+	private void decode(Integer chunkId, byte[][] chunks) {
+		StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(chunks[0].length), decodeLogger);
+		byte[][] decode = codec.decode(chunksPresent(chunks), chunks, chunks[0].length);
+		long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
+		long[] origChecksum = checksumMap.get(chunkId);
+		for (int i = 0; i < checksum.length; i++) {
+			if (checksum[i] != -1 && checksum[i] != origChecksum[i]) {
+				System.err.println("###\nChecksum isn't compatible stripeId: " + chunkId + "\n###");
+				break;
+			}
+		}
+		stopWatch.stop();
+		Long timestamp = timestampMap.remove(chunkId);
+		stripeLogger.info(Utils.buildLogMessage(timestamp, chunkId, ""));
 	}
 }
