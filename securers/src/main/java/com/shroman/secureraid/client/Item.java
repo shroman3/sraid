@@ -24,7 +24,7 @@ public class Item implements Serializable {
 			return this;
 		}
 
-		public Builder setFileSize(int size) {
+		public Builder setFileSize(long size) {
 			Utils.validatePositive(size, "file size");
 			item.fileSize = size;
 			return this;
@@ -54,7 +54,7 @@ public class Item implements Serializable {
 
 	private int id = -1;
 	private int stripesNumber = -1;
-	private int fileSize = -1;
+	private long fileSize = -1;
 
 	private Item() {
 	}
@@ -65,7 +65,7 @@ public class Item implements Serializable {
 		fileSize = other.fileSize;
 	}
 
-	public int getFileSize() {
+	public long getFileSize() {
 		return fileSize;
 	}
 

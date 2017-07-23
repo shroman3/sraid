@@ -38,9 +38,11 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private int shouldPresent;
 	private Logger decodeLogger;
 	private Logger stripeLogger;
+	private Logger throughputLogger;
 	private Config config;
 	private int serversNum;
 	private int stepSize;
+	private long startTimestamp;
 
 	ReadClient(Codec codec, Config config, int serversNum, int stepSize) {
 		this.serversNum = serversNum;
@@ -50,6 +52,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		shouldPresent = codec.getSize() - codec.getParityShardsNum();
 		decodeLogger = Logger.getLogger("Decode");
 		stripeLogger = Logger.getLogger("Stripe");
+		throughputLogger = Logger.getLogger("Throughput");
 	}
 
 	@Override
@@ -76,7 +79,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
 				byte[][] responses = readMap.get(stripeId);
 				int chunkId = (((serverId - (response.getChunkId() + response.getObjectId()) * stepSize) % serversNum)
-						+ codec.getSize()) % codec.getSize();
+						+ serversNum) % serversNum;
 				responses[chunkId] = response.getData();
 				Integer chunksNum = chunksMap.get(stripeId);
 				if (chunksNum == null) {
@@ -89,10 +92,32 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		}
 	}
 
-	public void setShouldPresent(int shouldPresent) {
+	@Override
+	public void run() {
+		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
+		synchronized (mutex) {
+			while (!(die && readMap.isEmpty())) {
+				try {
+					mutex.wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				chunksMap.entrySet().removeIf(e -> isStripeReady(e.getKey(), e.getValue()));
+			}
+			executer.shutdown();
+		}
+		logThroughput();
+	}
+
+	void setShouldPresent(int shouldPresent) {
 		this.shouldPresent = shouldPresent;
 	}
 
+
+	void setStartTimestamp() {
+		startTimestamp = System.currentTimeMillis();
+	}
+		
 	void readStripe(Item item, int stripeNum) {
 		int stripeId = calcStripeId(item.getId(), stripeNum);
 		readMap.put(stripeId, new byte[codec.getSize()][]);
@@ -130,21 +155,9 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		sizesMap = (Map<Integer, Integer>) in.readObject();
 		in.close();
 	}
-
-	@Override
-	public void run() {
-		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
-		synchronized (mutex) {
-			while (!(die && readMap.isEmpty())) {
-				try {
-					mutex.wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-				chunksMap.entrySet().removeIf(e -> isStripeReady(e.getKey(), e.getValue()));
-			}
-			executer.shutdown();
-		}
+	
+	void logThroughput() {
+		throughputLogger.info(Utils.buildLogMessage(startTimestamp, -1, ""));
 	}
 
 	private boolean isStripeReady(Integer chunkId, Integer chunksNum) {

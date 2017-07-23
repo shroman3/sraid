@@ -1,6 +1,6 @@
 package com.shroman.secureraid.codec;
 
-import com.backblaze.erasure.OutputInputByteTableCodingLoop;
+import com.backblaze.erasure.InputOutputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 
 public class SecureBackblazeRS extends SecureCodec {
@@ -42,7 +42,7 @@ public class SecureBackblazeRS extends SecureCodec {
 		if (getSecrecyShardsNum() > 0) {
 			decrypt = SecureBackblazeRS::decrypt;
 			secrecyRS = new ReedSolomon(getSecrecyShardsNum(), getParityShardsNum() + getDataShardsNum(),
-					new OutputInputByteTableCodingLoop());
+					new InputOutputByteTableCodingLoop());
 		} else {
 			decrypt = SecureBackblazeRS::emptyDecrypt;
 		}
@@ -50,7 +50,7 @@ public class SecureBackblazeRS extends SecureCodec {
 		if (getParityShardsNum() > 0) {
 			decodeMissing = SecureBackblazeRS::decodeMissing;
 			parityRS = new ReedSolomon(getSecrecyShardsNum() + getDataShardsNum(), getParityShardsNum(),
-					new OutputInputByteTableCodingLoop());
+					new InputOutputByteTableCodingLoop());
 		} else {
 			decodeMissing = SecureBackblazeRS::emptyDecodeMissing;
 		}
@@ -83,7 +83,7 @@ public class SecureBackblazeRS extends SecureCodec {
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
 		decodeMissing.decodeMissing(parityRS, shardPresent, shards, shardSize);
 
-		decrypt.decrypt(secrecyRS, shardSize, shards);
+		decrypt.decrypt(secrecyRS, shardSize, shards, getDataShardsNum());
 		byte[][] data = new byte[getDataShardsNum()][];
 		System.arraycopy(shards, getSecrecyShardsNum(), data, 0, getDataShardsNum());
 		return data;
@@ -100,10 +100,10 @@ public class SecureBackblazeRS extends SecureCodec {
 		}
 	}
 
-	private static void emptyDecrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards) {}
+	private static void emptyDecrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards, int dataShardsNum) {}
 	
-	private static void decrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards) {
-		secrecyRS.encodeParity(secrecyShards, 0, shardSize);
+	private static void decrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards, int dataShardsNum) {
+		secrecyRS.encodePartialParity(secrecyShards, 0, shardSize, dataShardsNum);
 	}
 
 	@FunctionalInterface
@@ -113,6 +113,6 @@ public class SecureBackblazeRS extends SecureCodec {
 
 	@FunctionalInterface
 	private static interface DecryptInterface {
-		void decrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards);
+		void decrypt(ReedSolomon secrecyRS, int shardSize, final byte[][] secrecyShards, int dataShardsNum);
 	}
 }

@@ -120,6 +120,7 @@ public class WriteClient {
 	void finalizeEncoder() throws InterruptedException, IOException {
 		executer.shutdown();
 		executer.awaitTermination(10, TimeUnit.MINUTES);
+		reader.logThroughput();
 	}
 
 	void finalizeWriter() throws InterruptedException, IOException {
@@ -128,6 +129,7 @@ public class WriteClient {
 		reader.saveChecksums();
 		saveItemsMap();
 		finalizeServerConnections();
+		reader.logThroughput();
 	}
 
 	void finalizeReader() {
@@ -171,7 +173,7 @@ public class WriteClient {
 	void degReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
-			reader.readStripe(item,i);
+			reader.readStripe(item, i);
 			int j = 0;
 			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
 			while (j < codec.getSize() - codec.getParityShardsNum()) {
@@ -187,7 +189,7 @@ public class WriteClient {
 	void deg2ReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
-			reader.readStripe(item,i);
+			reader.readStripe(item, i);
 			int j = 0;
 			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
 			while (j < codec.getSize() - codec.getParityShardsNum()) {
@@ -223,18 +225,18 @@ public class WriteClient {
 
 			// Get the size of the input file (files bigger than
 			// Integer.MAX_VALUE will fail!)
-			int fileSize = (int) inputFile.length();
+			long fileSize = inputFile.length();
 			// Figure how many stripes should be created
-			int stripes = (fileSize / stripeSize) + (fileSize % stripeSize == 0 ? 0 : 1);
+			int stripes = (int) ((fileSize / stripeSize) + (fileSize % stripeSize == 0 ? 0 : 1));
 
-			int bytesRead = 0;
+			long bytesRead = 0;
 			// Creating stripes (all except the last)
 			for (int i = 0; i < stripes - 1; i++) {
 				bytesRead += encodeStripe(in, shardSize, i, itemIdGenerator);
 			}
 			// Creating the last stripe
 			int shardsNum = codec.getDataShardsNum();
-			int leftoverSize = fileSize - (stripes - 1) * shardsNum * shardSize;
+			int leftoverSize = (int) (fileSize - (stripes - 1) * shardsNum * shardSize);
 			int leftoverShardSize = (leftoverSize + shardsNum - 1) / shardsNum;
 			bytesRead += encodeStripe(in, leftoverShardSize, stripes - 1, itemIdGenerator);
 
@@ -257,14 +259,15 @@ public class WriteClient {
 	}
 
 	void clean() {
-		for (int i = 0; i < codec.getSize(); i++) {
+		for (int i = 0; i < serversNum; i++) {
 			servers.get(i).addMessage(new Message(MessageType.CLEAN));
 		}
 	}
 
 	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
+		int initialStep = ((objectId + chunkId) * stepSize) % serversNum;
 		for (int i = 0; i < encodedShards.length; i++) {
-			int serverId = (i + (objectId + chunkId) * stepSize) % codec.getSize();
+			int serverId = (i + initialStep) % serversNum;
 			servers.get(serverId).addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
 		}
 	}
@@ -316,6 +319,8 @@ public class WriteClient {
 				byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards);
 				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length));
 				sendEncoded(encodedShards, itemId, stripeId);
+				// stopWatch.stop(Integer.toString(combinedId),
+				// Integer.toString(dataShards[0].length) + ",BARRIER");
 			}
 		});
 		return bytesRead;
@@ -323,6 +328,7 @@ public class WriteClient {
 
 	private void run(Scanner inputFileScanner)
 			throws IOException, InterruptedException, ClassNotFoundException, XMLParsingException {
+		reader.setStartTimestamp();
 		operation.run(inputFileScanner, this);
 	}
 
@@ -355,8 +361,13 @@ public class WriteClient {
 			String randomKey = args[6];
 			int serversNum = Integer.parseInt(args[7]);
 			int stepSize = Integer.parseInt(args[8]);
-			return new WriteClient(CodecType.getCodecFromArgs(codecName, k, r, z, randomName, randomKey),
-					OperationType.getOperationByName(operationType), serversNum, stepSize, xmlGetter);
+			Codec codec = CodecType.getCodecFromArgs(codecName, k, r, z, randomName, randomKey);
+			if (serversNum < codec.getSize()) {
+				throw new IllegalArgumentException("Number of servers should be higher that code length. Given "
+						+ serversNum + " while n=" + codec.getSize());
+			}
+			return new WriteClient(codec, OperationType.getOperationByName(operationType), serversNum, stepSize,
+					xmlGetter);
 		} catch (NumberFormatException e) {
 			throw new IllegalArgumentException("k,r,z should be numbers: " + e.getMessage());
 		}

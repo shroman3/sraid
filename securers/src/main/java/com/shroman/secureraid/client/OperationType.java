@@ -107,12 +107,15 @@ public enum OperationType {
 	},
 	CLEAN("C", "CLEAN") {
 		@Override
-		public void run(Scanner inputFileScanner, WriteClient client) throws IOException {
+		public void run(Scanner inputFileScanner, WriteClient client) throws IOException, XMLParsingException, InterruptedException {
+			initOperation(client);
 			client.clean();
+			finalizeOperation(client);
 		}
 
 		@Override
-		void initOperation(WriteClient client) {
+		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException {
+			client.initWriter();
 		}
 		
 		@Override
@@ -120,7 +123,8 @@ public enum OperationType {
 		}
 		
 		@Override
-		void finalizeOperation(WriteClient client) throws InterruptedException {
+		void finalizeOperation(WriteClient client) throws InterruptedException, IOException {
+			client.finalizeWriter();
 		}
 	};
 	

@@ -40,7 +40,7 @@ public class Utils {
 		}
 	}
 
-	public static void validatePositive(int param, String paramName) {
+	public static void validatePositive(long param, String paramName) {
 		if (param < 0) {
 			throw new IllegalArgumentException(paramName + " parameter isn't positive (it should be)");
 		}

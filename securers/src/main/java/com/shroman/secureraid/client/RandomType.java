@@ -34,7 +34,7 @@ public enum RandomType {
 			}
 		}
 	},
-	SECURE("SECURE") {
+	SECURE("SECURE", "DEV_RANDOM", "DEV_URANDOM") {
 		@Override
 		public Random buildRandom(String randomKey) {
 			return new SecureRandom(randomKey.getBytes());

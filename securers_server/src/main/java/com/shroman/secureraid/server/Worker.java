@@ -56,6 +56,7 @@ public class Worker extends Thread {
 				writer.addResponse(response);
 			} catch (InterruptedException e) {
 				e.printStackTrace();
+				logger.error("1 Something went wrong: " + e.getMessage(), e);
 			}
 		}
 		writer.addResponse(Response.KILL);
@@ -63,6 +64,7 @@ public class Worker extends Thread {
 			writer.join();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
+			logger.error("2 Something went wrong: " + e.getMessage(), e);
 		}
 	}
 
