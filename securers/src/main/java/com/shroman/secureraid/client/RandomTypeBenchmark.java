@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Random;
 
 public class RandomTypeBenchmark {
-    private static final int BUFFER_SIZE = 1024 * 1024;
+    private static final int BUFFER_SIZE = 1024 * 4;
     
-    private static final long MEASUREMENT_DURATION = 2 * 1000;
+    private static final long MEASUREMENT_DURATION = 1000;
 
 	public static void main(String [] args) {
         (new RandomTypeBenchmark()).run();

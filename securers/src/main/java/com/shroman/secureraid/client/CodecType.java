@@ -6,6 +6,7 @@ import java.util.Map;
 import com.shroman.secureraid.codec.AESCodec;
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.codec.NoCodec;
+import com.shroman.secureraid.codec.PackedSecretSharingCodec;
 import com.shroman.secureraid.codec.RC4Codec;
 import com.shroman.secureraid.codec.SecretSharingCodec;
 import com.shroman.secureraid.codec.SecureBackblazeRS;
@@ -63,7 +64,7 @@ public enum CodecType {
 			return builder.build();
 		}
 	},
-	SECRET_SHARING("SSS") {
+	SHAMIR_SECRET_SHARING("SSS", "SHAMIR") {
 		@Override
 		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			SecretSharingCodec.Builder builder = new SecretSharingCodec.Builder();
@@ -72,6 +73,15 @@ public enum CodecType {
 				throw new UnsupportedOperationException();
 			}
 
+			builder.setRandom(RandomType.getRandom(randomName, randomKey)).setSecrecyShardsNum(z).setDataShardsNum(k)
+					.setParityShardsNum(r);
+			return builder.build();
+		}
+	},
+	PACKED_SECRET_SHARING("PSS", "PACKED") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			PackedSecretSharingCodec.Builder builder = new PackedSecretSharingCodec.Builder();
 			builder.setRandom(RandomType.getRandom(randomName, randomKey)).setSecrecyShardsNum(z).setDataShardsNum(k)
 					.setParityShardsNum(r);
 			return builder.build();

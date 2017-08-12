@@ -2,30 +2,30 @@ package com.shroman.secureraid.codec;
 
 import java.util.Random;
 
-import com.shroman.secret_sharing.SecretCombine;
-import com.shroman.secret_sharing.SecretSplit;
+import com.shroman.secret_sharing.PackedSecretCombine;
+import com.shroman.secret_sharing.PackedSecretSplit;
 
 
 
-public class SecretSharingCodec extends SecureCodec {
+public class PackedSecretSharingCodec extends SecureCodec {
 	public static class Builder extends SecureCodec.Builder {
-		private SecretSharingCodec codec;
+		private PackedSecretSharingCodec codec;
 
 		public Builder() {
-			setCodec(new SecretSharingCodec());
+			setCodec(new PackedSecretSharingCodec());
 		}
 
-		Builder(SecretSharingCodec secureRS) {
-			setCodec(new SecretSharingCodec(secureRS));
+		Builder(PackedSecretSharingCodec secureRS) {
+			setCodec(new PackedSecretSharingCodec(secureRS));
 		}
 
 		@Override
-		public SecretSharingCodec build() {
+		public PackedSecretSharingCodec build() {
 			validate();
-			return new SecretSharingCodec(codec);
+			return new PackedSecretSharingCodec(codec);
 		}
 
-		protected void setCodec(SecretSharingCodec codec) {
+		protected void setCodec(PackedSecretSharingCodec codec) {
 			super.setCodec(codec);
 			this.codec = codec;
 		}
@@ -33,18 +33,18 @@ public class SecretSharingCodec extends SecureCodec {
 
 	private int[] shareIndexes = null;
 
-	SecretSharingCodec() {
+	PackedSecretSharingCodec() {
 	}
 
-	SecretSharingCodec(SecretSharingCodec other) {
+	PackedSecretSharingCodec(PackedSecretSharingCodec other) {
 		super(other);
-		shareIndexes  = SecretSplit.ballotShareIndexes(getSize(), new Random(19981908));
+		shareIndexes  = PackedSecretSplit.ballotShareIndexes(getSize(), getDataShardsNum() + getSecrecyShardsNum(), new Random(19981908));
 	}
 
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
 		byte[][] shares = new byte[getSize()][];
-		SecretSplit split = new SecretSplit(getSize(), getSecrecyShardsNum(), data, shareIndexes, getRandom());
+		PackedSecretSplit split = new PackedSecretSplit(getSize(), getSecrecyShardsNum(), data, shareIndexes, getRandom());
 		for (int i = 0; i < getSize(); i++) {
 			shares[i] = split.getShare(i);
 		}
@@ -64,7 +64,7 @@ public class SecretSharingCodec extends SecureCodec {
 			}
 		}
 		
-		SecretCombine combine = new SecretCombine(shareIndexes, shares);
+		PackedSecretCombine combine = new PackedSecretCombine(shareIndexes, shares);
 		return combine.extractSecret(getDataShardsNum());
 	}
 }

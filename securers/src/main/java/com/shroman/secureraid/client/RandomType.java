@@ -34,10 +34,17 @@ public enum RandomType {
 			}
 		}
 	},
-	SECURE("SECURE", "DEV_RANDOM", "DEV_URANDOM") {
+	DEV_URANDOM("DEV_URANDOM", "URANDOM") {
 		@Override
 		public Random buildRandom(String randomKey) {
-			return new SecureRandom(randomKey.getBytes());
+			try {
+				SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGNonBlocking");
+				return secureRandom;
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+				System.out.println("Problem creating NativePRNGNonBlocking");
+				return new SecureRandom(randomKey.getBytes());
+			}
 		}
 	},
 	SHA1("SHA", "SHA1") {
@@ -74,7 +81,20 @@ public enum RandomType {
 			BigInteger seed = new BigInteger(randomKey.getBytes());
 			return new NoRandom(seed.longValue());
 		}
-	};
+	},//	DEV_RANDOM("DEV_RANDOM", "RANDOM") {
+//	@Override
+//	public Random buildRandom(String randomKey) {
+//		try {
+//			SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGBlocking");
+//			return secureRandom;
+//		} catch (NoSuchAlgorithmException e) {
+//			e.printStackTrace();
+//			System.out.println("Problem creating NativePRNGBlocking");
+//			return new SecureRandom();
+//		}
+//	}
+//},
+	;
 
 	private String[] randomNames;
 
