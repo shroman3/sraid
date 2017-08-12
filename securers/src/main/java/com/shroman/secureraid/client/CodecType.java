@@ -19,7 +19,7 @@ public enum CodecType {
 		@Override
 		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			NoCodec.Builder builder = new NoCodec.Builder();
-			builder.setDataShardsNum(k).setParityShardsNum(0);
+			builder.setDataShardsNum(k).setParityShardsNum(r);
 			return builder.build();
 		}
 	},

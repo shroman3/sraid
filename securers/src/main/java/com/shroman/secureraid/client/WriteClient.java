@@ -174,14 +174,15 @@ public class WriteClient {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			reader.readStripe(item, i);
-			int j = 0;
+			int chunksRequested = 0, j = 0;
 			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
-			while (j < codec.getSize() - codec.getParityShardsNum()) {
+			while (chunksRequested < codec.getSize() - codec.getParityShardsNum()) {
 				int serverId = (j + stripeStep) % serversNum;
 				if (serverId != 0) {
 					servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
-					j++;
+					chunksRequested++;
 				}
+				j++;
 			}
 		}
 	}
@@ -190,14 +191,15 @@ public class WriteClient {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			reader.readStripe(item, i);
-			int j = 0;
+			int chunksRequested = 0, j = 0;
 			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
-			while (j < codec.getSize() - codec.getParityShardsNum()) {
+			while (chunksRequested < codec.getSize() - codec.getParityShardsNum()) {
 				int serverId = (j + stripeStep) % serversNum;
 				if (serverId > 1) {
 					servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
-					j++;
+					chunksRequested++;
 				}
+				j++;
 			}
 		}
 	}

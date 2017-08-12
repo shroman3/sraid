@@ -57,11 +57,8 @@ public abstract class CryptoCodec extends Codec {
 			return encrypt;
 		}
 		byte[][] shards = new byte[getSize()][];
-		int i = 0;
-		for (; i < encrypt.length; i++) {
-			shards[i] = encrypt[i];
-		}
-		for (; i < shards.length; i++) {
+		System.arraycopy(encrypt, 0, shards, 0, encrypt.length);
+		for (int i = encrypt.length; i < shards.length; i++) {
 			shards[i] = new byte[encrypt[0].length];
 		}
 		

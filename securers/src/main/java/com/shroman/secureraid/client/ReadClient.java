@@ -181,7 +181,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		for (int j = 0; j < codec.getSize(); ++j) {
 			shardPresent[j] = (chunks[j] != null);
 			if (!shardPresent[j]) {
-				chunks[j] = new byte[chunks[0].length];
+				chunks[j] = new byte[getChunkSize(chunks)];
 			}
 		}
 		return shardPresent;
@@ -206,7 +206,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	}
 
 	private void decode(Integer chunkId, byte[][] chunks) {
-		StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(chunks[0].length), decodeLogger);
+		StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(getChunkSize(chunks)), decodeLogger);
 		byte[][] decode = codec.decode(chunksPresent(chunks), chunks, chunks[0].length);
 		long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
 		long[] origChecksum = checksumMap.get(chunkId);
@@ -219,5 +219,14 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		stopWatch.stop();
 		Long timestamp = timestampMap.remove(chunkId);
 		stripeLogger.info(Utils.buildLogMessage(timestamp, chunkId, ""));
+	}
+
+	private int getChunkSize(byte[][] chunks) {
+		for (byte[] bs : chunks) {
+			if (bs != null) {				
+				return bs.length;
+			}
+		}
+		return 0;
 	}
 }

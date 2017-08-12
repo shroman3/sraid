@@ -1,6 +1,6 @@
 package com.shroman.secureraid.codec;
 
-import com.backblaze.erasure.InputOutputByteTableCodingLoop;
+import com.backblaze.erasure.OutputInputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 
 public class NoCodec extends Codec {
@@ -35,8 +35,7 @@ public class NoCodec extends Codec {
 	NoCodec(NoCodec other) {
 		super(other);
 		if (getParityShardsNum() > 0) {
-			parityRS = new ReedSolomon(getDataShardsNum(), getParityShardsNum(),
-					new InputOutputByteTableCodingLoop());
+			parityRS = new ReedSolomon(getDataShardsNum(), getParityShardsNum(), new OutputInputByteTableCodingLoop());
 		}
 	}
 
@@ -45,6 +44,9 @@ public class NoCodec extends Codec {
 		byte[][] shards = new byte[getSize()][];
 		System.arraycopy(data, 0, shards, 0, getDataShardsNum());
 		if (getParityShardsNum() > 0) {
+			for (int i = getDataShardsNum(); i < shards.length; i++) {
+				shards[i] = new byte[shardSize];
+			}
 			parityRS.encodeParity(shards, 0, shardSize);
 		}
 		return shards;
