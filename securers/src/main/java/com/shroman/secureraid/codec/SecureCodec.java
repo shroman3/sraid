@@ -45,6 +45,9 @@ public abstract class SecureCodec extends Codec {
 
 	private Random random;
 
+	public abstract byte[][] encode(int shardSize, byte[][] data);
+	public abstract byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize);
+
 	SecureCodec() {}
 	SecureCodec(SecureCodec other) {
 		super(other);
@@ -58,5 +61,25 @@ public abstract class SecureCodec extends Codec {
 
 	public Random getRandom() {
 		return random;
+	}
+	
+	@Override
+	public byte[][] encode(int shardSize, byte[][] data, byte[] key) {
+		return encode(shardSize, data);
+	}
+
+	@Override
+	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize, byte[] key) {
+		return decode(shardPresent, shards, shardSize);
+	}
+	
+	@Override
+	public byte[] generateKey() {
+		return null;
+	}
+	
+	@Override
+	public boolean isKeyNeeded() {
+		return false;
 	}
 }

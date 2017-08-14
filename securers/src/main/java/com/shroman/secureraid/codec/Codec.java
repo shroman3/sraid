@@ -49,10 +49,14 @@ public abstract class Codec {
 		size = other.size;
 	}
 
-	public abstract byte[][] encode(int shardSize, byte[][] data);
+	public abstract byte[][] encode(int shardSize, byte[][] data, byte[] key);
 
-	public abstract byte[][] decode(boolean [] shardPresent, byte[][] data, int shardSize);
+	public abstract byte[][] decode(boolean [] shardPresent, byte[][] shards, int shardSize, byte[] key);
 
+	public abstract byte[] generateKey();
+	
+	public abstract boolean isKeyNeeded();
+	
 	public int getSize() {
 		return size;
 	}

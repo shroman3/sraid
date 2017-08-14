@@ -21,6 +21,8 @@
  *******************************************************************************/
 package com.shroman.secureraid.utils;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
@@ -96,5 +98,17 @@ public class Utils {
 		sb.append("start[").append(timestamp).append("] time[").append(System.currentTimeMillis() - timestamp)
 				.append("] tag[").append(stripeId).append("] message[").append(message).append(']');
 		return sb.toString();
+	}
+
+	public static SecureRandom createTrueRandom() {
+		SecureRandom random;
+		try {
+			random = SecureRandom.getInstance("NativePRNGBlocking");
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+			System.out.println("Problem creating NativePRNGBlocking");
+			random = new SecureRandom();		
+		}
+		return random;
 	}
 }

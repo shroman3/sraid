@@ -159,11 +159,11 @@ public class Client implements PushResponseInterface {
 		return true;
 	}
 	
-	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
-		for (int i = 0; i < encodedShards.length; i++) {
-			servers.get((i + objectId + chunkId)%codec.getSize()).addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
-		}
-	}
+//	private void sendEncoded(byte[][] encodedShards, int objectId, int chunkId) {
+//		for (int i = 0; i < encodedShards.length; i++) {
+//			servers.get((i + objectId + chunkId)%codec.getSize()).addMessage(new Message(MessageType.WRITE, encodedShards[i], objectId, chunkId));
+//		}
+//	}
 
 	private void sendClean() throws IOException {
 		while (!readMap.isEmpty()) {
@@ -199,9 +199,9 @@ public class Client implements PushResponseInterface {
 		}
 
 		// long beforeEncode = System.currentTimeMillis();
-		byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards);
+//		byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards);
 		// long afterEncode = System.currentTimeMillis();
-		sendEncoded(encodedShards, itemId, stripeId);
+//		sendEncoded(encodedShards, itemId, stripeId);
 		return bytesRead;
 	}
 
@@ -240,7 +240,7 @@ public class Client implements PushResponseInterface {
 					}
 					
 					if (present == shouldPresent) {
-						decoded[i] = codec.decode(shardPresent, stripe, stripe[0].length);
+//						decoded[i] = codec.decode(shardPresent, stripe, stripe[0].length);
 						++decodedNum;
 					}
 				}

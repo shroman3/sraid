@@ -65,6 +65,10 @@ public class PackedSecretSharingCodec extends SecureCodec {
 		}
 		
 		PackedSecretCombine combine = new PackedSecretCombine(shareIndexes, shares);
-		return combine.extractSecret(getDataShardsNum());
+		byte[][] secret = new byte[getDataShardsNum()][];
+		for (int i = 0; i < secret.length; i++) {
+			secret[i] = combine.extractSecret(i); 
+		}
+		return secret;
 	}
 }

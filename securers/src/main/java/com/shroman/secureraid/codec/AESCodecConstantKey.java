@@ -3,59 +3,65 @@ package com.shroman.secureraid.codec;
 import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
+import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.paddings.BlockCipherPadding;
 import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
 import org.bouncycastle.crypto.paddings.ZeroBytePadding;
 import org.bouncycastle.crypto.params.KeyParameter;
 
-public class AESCodec extends CryptoCodecWithKey {
-	public static class Builder extends CryptoCodecWithKey.Builder {
-		private AESCodec codec;
+public class AESCodecConstantKey extends CryptoCodecConstantKey {
+	public static class Builder extends CryptoCodecConstantKey.Builder {
+		private AESCodecConstantKey codec;
 
 		public Builder() {
-			setCodec(new AESCodec());
+			setCodec(new AESCodecConstantKey());
 		}
 
-		Builder(AESCodec secureRS) {
-			setCodec(new AESCodec(secureRS));
+		Builder(AESCodecConstantKey secureRS) {
+			setCodec(new AESCodecConstantKey(secureRS));
 		}
 
 		@Override
-		public AESCodec build() {
+		public AESCodecConstantKey build() {
 			validate();
-			return new AESCodec(codec);
+			return new AESCodecConstantKey(codec);
 		}
 
-		protected void setCodec(AESCodec codec) {
+		protected void setCodec(AESCodecConstantKey codec) {
 			super.setCodec(codec);
 			this.codec = codec;
+		}
+
+		@Override
+		protected Digest getDigest() {
+			return new SHA256Digest();
 		}
 	}
 	
 	private BlockCipherPadding blockCipherPadding;
-//	private CipherParameters cipherParameters;
+	private CipherParameters cipherParameters;
 
-	AESCodec() {
+	AESCodecConstantKey() {
 	}
 
-	AESCodec(AESCodec other) {
+	AESCodecConstantKey(AESCodecConstantKey other) {
 		super(other);
 		blockCipherPadding = new ZeroBytePadding();
-//		cipherParameters = new KeyParameter(getKey());
+		cipherParameters = new KeyParameter(getKey());
 	}
 
 	@Override
-	public byte[][] encode(int shardSize, byte[][] data, byte[] key) {
+	public byte[][] encode(int shardSize, byte[][] data) {
 		// List of BlockCiphers can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
-		CipherParameters cipherParameters = new KeyParameter(key);
 		BlockCipher blockCipher = new AESEngine();
 		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
 
 		try {
-			byte[][] encrypt = encrypt(data, bufferedBlockCipher, cipherParameters);
+			byte[][] encrypt = encrypt(data, bufferedBlockCipher);
 			return encodeRS(encrypt);
 		} catch (InvalidCipherTextException e) {
 			e.printStackTrace();
@@ -64,10 +70,9 @@ public class AESCodec extends CryptoCodecWithKey {
 	}
 
 	@Override
-	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize, byte[] key) {
+	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
 		decodeRS(shardPresent, shards, shardSize);
 
-		CipherParameters cipherParameters = new KeyParameter(key);
 
 		// List of BlockCiphers can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
 		BlockCipher blockCipher = new AESEngine();
@@ -78,7 +83,7 @@ public class AESCodec extends CryptoCodecWithKey {
 		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
 
 		try {
-			return decrypt(shards, bufferedBlockCipher, cipherParameters);
+			return decrypt(shards, bufferedBlockCipher);
 		} catch (InvalidCipherTextException e) {
 			e.printStackTrace();
 			throw new RuntimeCryptoException(e.getMessage());
@@ -89,25 +94,19 @@ public class AESCodec extends CryptoCodecWithKey {
 		return new Builder(this);
 	}
 
-
-	@Override
-	public int getKeySize() {
-		return 32;
-	}
-
-	private byte[][] encrypt(byte[][] data, BufferedBlockCipher bufferedBlockCipher, CipherParameters cipherParameters)
+	public byte[][] encrypt(byte[][] data, BufferedBlockCipher bufferedBlockCipher)
 			throws InvalidCipherTextException {
 		bufferedBlockCipher.init(true, cipherParameters);
 		return process(data, bufferedBlockCipher);
 	}
 
-	private byte[][] decrypt(byte[][] shards, BufferedBlockCipher bufferedBlockCipher, CipherParameters cipherParameters)
+	public byte[][] decrypt(byte[][] shards, BufferedBlockCipher bufferedBlockCipher)
 			throws InvalidCipherTextException {
 		bufferedBlockCipher.init(false, cipherParameters);
 		return process(shards, bufferedBlockCipher);
 	}
 
-	private byte[][] process(byte[][] shards, BufferedBlockCipher bufferedBlockCipher) throws InvalidCipherTextException {
+	public byte[][] process(byte[][] shards, BufferedBlockCipher bufferedBlockCipher) throws InvalidCipherTextException {
 		int inputLength = shards[0].length;
 
 		int maximumOutputLength = bufferedBlockCipher.getOutputSize(inputLength);

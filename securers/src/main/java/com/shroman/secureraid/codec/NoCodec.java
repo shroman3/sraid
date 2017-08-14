@@ -3,8 +3,8 @@ package com.shroman.secureraid.codec;
 import com.backblaze.erasure.OutputInputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 
-public class NoCodec extends Codec {
-	public static class Builder extends Codec.Builder {
+public class NoCodec extends CryptoCodec {
+	public static class Builder extends CryptoCodec.Builder {
 		private NoCodec codec;
 
 		public Builder() {
@@ -40,20 +40,12 @@ public class NoCodec extends Codec {
 	}
 
 	@Override
-	public byte[][] encode(int shardSize, byte[][] data) {
-		byte[][] shards = new byte[getSize()][];
-		System.arraycopy(data, 0, shards, 0, getDataShardsNum());
-		if (getParityShardsNum() > 0) {
-			for (int i = getDataShardsNum(); i < shards.length; i++) {
-				shards[i] = new byte[shardSize];
-			}
-			parityRS.encodeParity(shards, 0, shardSize);
-		}
-		return shards;
+	public byte[][] encode(int shardSize, byte[][] data, byte[] key) {
+		return encodeRS(data);
 	}
 
 	@Override
-	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
+	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize, byte[] key) {
 		if (getParityShardsNum() > 0) {			
 			for (int i = 0; i < parityRS.getDataShardCount(); i++) {
 				if (!shardPresent[i]) {
@@ -64,10 +56,22 @@ public class NoCodec extends Codec {
 		}
 		byte[][] data = new byte[getDataShardsNum()][];
 		System.arraycopy(shards, 0, data, 0, getDataShardsNum());
+		decodeRS(shardPresent, shards, shardSize);
+
 		return data;
 	}
 
 	public Builder getSelfBuilder() {
 		return new Builder(this);
+	}
+
+	@Override
+	public byte[] generateKey() {
+		return null;
+	}
+
+	@Override
+	public boolean isKeyNeeded() {
+		return false;
 	}
 }

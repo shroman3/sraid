@@ -39,7 +39,7 @@ import com.shroman.secureraid.utils.XMLParsingException;
 public class WriteClient {
 	private static final String ITEMS_FILENAME = "items.ser";
 	private static final String CONFIG_XML = "config.xml";
-	private static final int BYTES_IN_MEGABYTE = 1048576;
+	private static final int BYTES_IN_MEGABYTE = 1048576; //1048512; // Really it is 1048576 we reduce 64 bytes for padding;
 	private List<Connection> servers = new ArrayList<>();
 	private Map<String, Item> itemsMap = new HashMap<>();
 	private int itemIdGenerator = 0;
@@ -316,9 +316,9 @@ public class WriteClient {
 			@Override
 			public void run() {
 				StopWatch stopWatch = new Log4JStopWatch(logger);
-				int combinedId = reader.addChecksum(stripeId, itemId, dataShards);
-
-				byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards);
+				byte[] key = codec.generateKey();
+				int combinedId = reader.addChecksumAndKey(stripeId, itemId, dataShards, key);
+				byte[][] encodedShards = codec.encode(dataShards[0].length, dataShards, key);
 				stopWatch.stop(Integer.toString(combinedId), Integer.toString(dataShards[0].length));
 				sendEncoded(encodedShards, itemId, stripeId);
 				// stopWatch.stop(Integer.toString(combinedId),

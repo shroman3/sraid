@@ -111,7 +111,7 @@ public class ReedSolomonBenchmark {
     }
 
     private Measurement doOneEncodeMeasurement(ReedSolomon codec, BufferSet[] bufferSets) {
-        long passesCompleted = 0;
+//        long passesCompleted = 0;
         long bytesEncoded = 0;
         long encodingTime = 0;
         while (encodingTime < MEASUREMENT_DURATION) {
@@ -123,7 +123,7 @@ public class ReedSolomonBenchmark {
             long endTime = System.currentTimeMillis();
             encodingTime += (endTime - startTime);
             bytesEncoded += BUFFER_SIZE * DATA_COUNT;
-            passesCompleted += 1;
+//            passesCompleted += 1;
         }
         double seconds = ((double)encodingTime) / 1000.0;
         double megabytes = ((double)bytesEncoded) / 1000000.0;
@@ -133,7 +133,7 @@ public class ReedSolomonBenchmark {
     }
 
     private Measurement doOneCheckMeasurement(ReedSolomon codec, BufferSet[] bufferSets, byte [] tempBuffer) {
-        long passesCompleted = 0;
+//        long passesCompleted = 0;
         long bytesChecked = 0;
         long checkingTime = 0;
         while (checkingTime < MEASUREMENT_DURATION) {
@@ -149,7 +149,7 @@ public class ReedSolomonBenchmark {
             long endTime = System.currentTimeMillis();
             checkingTime += (endTime - startTime);
             bytesChecked += BUFFER_SIZE * DATA_COUNT;
-            passesCompleted += 1;
+//            passesCompleted += 1;
         }
         double seconds = ((double)checkingTime) / 1000.0;
         double megabytes = ((double)bytesChecked) / 1000000.0;

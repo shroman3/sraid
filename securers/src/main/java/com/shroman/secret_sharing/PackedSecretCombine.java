@@ -17,25 +17,22 @@ public class PackedSecretCombine {
 
 	/**
 	 * Combines the shares and calculates the secret using interpolation.
-	 * @param k - works only for k=1,2
+	 * @param secretIndex - index of the secret to reconstruct
 	 * @return secret
 	 */
-	public byte[][] extractSecret(int secretSize) {
-		byte[][] secret = new byte[secretSize][size];
+	public byte[] extractSecret(int secretIndex) {
+		byte[] secret = new byte[size];
 		for (int i = 0; i < threshold; ++i) {
 			// Compute Li(0) (Lagrange Interpolation)
-			int LiDenominator = 0;
-			int[] LiNumerator = new int[secret.length];
+			int LiDenominator = 0, LiNumerator = 0;
 			
 			for (int j = 0; j < threshold; ++j) {
 				if (i == j) {
 					continue;
 				}
-				for (int k = 0; k < secret.length; k++) {					
-					LiNumerator[k] += LogExpTables.logs[(shareIndexes[j]) ^ unsignedToBytes((byte)-k)];
-					if (LiNumerator[k] >= 0xff) {
-						LiNumerator[k] -= 0xff;
-					}
+				LiNumerator += LogExpTables.logs[(shareIndexes[j]) ^ unsignedToBytes((byte)-secretIndex)];
+				if (LiNumerator >= 0xff) {
+					LiNumerator -= 0xff;
 				}
 				LiDenominator += LogExpTables.logs[(shareIndexes[i]) ^ (shareIndexes[j])];
 				if (LiDenominator >= 0xff) {
@@ -43,17 +40,15 @@ public class PackedSecretCombine {
 				}
 			}
 			
-			for (int k = 0; k < secret.length; k++) {					
-				if (LiDenominator > LiNumerator[k]) {
-					LiNumerator[k] += 0xff;
-				}
-				int logLi = LiNumerator[k] - LiDenominator;
-
-				for (int j = 0; j < size; ++j) {
-					int share_byte = unsignedToBytes(shares[i][j]);
-					if (share_byte != 0) {
-						secret[k][j] ^= LogExpTables.exps[logLi + LogExpTables.logs[share_byte]];
-					}
+			if (LiDenominator > LiNumerator) {
+				LiNumerator += 0xff;
+			}
+			int logLi = LiNumerator - LiDenominator;
+			
+			for (int j = 0; j < size; ++j) {
+				int share_byte = unsignedToBytes(shares[i][j]);
+				if (share_byte != 0) {
+					secret[j] ^= LogExpTables.exps[logLi + LogExpTables.logs[share_byte]];
 				}
 			}
 		}

@@ -1,47 +1,59 @@
 package com.shroman.secureraid.codec;
 
 import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
+import org.bouncycastle.crypto.digests.MD5Digest;
 import org.bouncycastle.crypto.engines.RC4Engine;
 import org.bouncycastle.crypto.params.KeyParameter;
 
-public class RC4Codec extends CryptoCodecWithKey {
-	public static class Builder extends CryptoCodecWithKey.Builder {
-		private RC4Codec codec;
+public class RC4CodecConstantKey extends CryptoCodecConstantKey {
+	public static class Builder extends CryptoCodecConstantKey.Builder {
+		private RC4CodecConstantKey codec;
 
 		public Builder() {
-			setCodec(new RC4Codec());
+			setCodec(new RC4CodecConstantKey());
 		}
 
-		Builder(RC4Codec codec) {
-			setCodec(new RC4Codec(codec));
+		Builder(RC4CodecConstantKey secureRS) {
+			setCodec(new RC4CodecConstantKey(secureRS));
 		}
 
 		@Override
-		public RC4Codec build() {
+		public RC4CodecConstantKey build() {
 			validate();
-			return new RC4Codec(codec);
+			return new RC4CodecConstantKey(codec);
 		}
 
-		protected void setCodec(RC4Codec codec) {
+		protected void setCodec(RC4CodecConstantKey codec) {
 			super.setCodec(codec);
 			this.codec = codec;
 		}
-	}
-	
-	RC4Codec() {
+
+		@Override
+		protected Digest getDigest() {
+			return new MD5Digest();
+		}
 	}
 
-	RC4Codec(RC4Codec other) {
+//	private RC4Engine encrypt = null;
+//	private RC4Engine decrypt = null;
+	private CipherParameters cipherParameters;
+
+
+	RC4CodecConstantKey() {
+	}
+
+	RC4CodecConstantKey(RC4CodecConstantKey other) {
 		super(other);
+		cipherParameters = new KeyParameter(getKey());
 	}
 
 	@Override
-	public byte[][] encode(int shardSize, byte[][] data, byte[] key) {
+	public byte[][] encode(int shardSize, byte[][] data) {
 		try {
-			CipherParameters cipherParameters = new KeyParameter(key);
-			byte[][] encrypt = encrypt(data, cipherParameters);
+			byte[][] encrypt = encrypt(data);
 			return encodeRS(encrypt);
 		} catch (InvalidCipherTextException e) {
 			e.printStackTrace();
@@ -50,12 +62,11 @@ public class RC4Codec extends CryptoCodecWithKey {
 	}
 
 	@Override
-	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize, byte[] key) {
+	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
 		decodeRS(shardPresent, shards, shardSize);
 
 		try {
-			CipherParameters cipherParameters = new KeyParameter(key);
-			return decrypt(shards, cipherParameters);
+			return decrypt(shards);
 		} catch (InvalidCipherTextException e) {
 			e.printStackTrace();
 			throw new RuntimeCryptoException(e.getMessage());
@@ -66,24 +77,19 @@ public class RC4Codec extends CryptoCodecWithKey {
 		return new Builder(this);
 	}
 
-	@Override
-	public int getKeySize() {
-		return 16;
-	}
-
-	private byte[][] encrypt(byte[][] data, CipherParameters cipherParameters) throws InvalidCipherTextException {
+	public byte[][] encrypt(byte[][] data) throws InvalidCipherTextException {
 		RC4Engine encrypt = new RC4Engine();
         encrypt.init(true, cipherParameters);
 		return process(encrypt, data);
 	}
 
-	private byte[][] decrypt(byte[][] shards, CipherParameters cipherParameters) throws InvalidCipherTextException {
+	public byte[][] decrypt(byte[][] shards) throws InvalidCipherTextException {
 		RC4Engine decrypt = new RC4Engine();
         decrypt.init(false, cipherParameters);
 		return process(decrypt, shards);
 	}
 
-	private byte[][] process(RC4Engine engine, byte[][] shards) throws InvalidCipherTextException {
+	public byte[][] process(RC4Engine engine, byte[][] shards) throws InvalidCipherTextException {
 		int inputLength = shards[0].length;
 
 		byte[][] output = new byte[getDataShardsNum()][shards[0].length];

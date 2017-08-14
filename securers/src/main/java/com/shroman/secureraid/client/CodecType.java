@@ -4,12 +4,19 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.shroman.secureraid.codec.AESCodec;
+import com.shroman.secureraid.codec.AESCodecConstantKey;
+import com.shroman.secureraid.codec.AONTAES;
+import com.shroman.secureraid.codec.AONTRC4;
 import com.shroman.secureraid.codec.Codec;
 import com.shroman.secureraid.codec.NoCodec;
 import com.shroman.secureraid.codec.PackedSecretSharingCodec;
+import com.shroman.secureraid.codec.PackedSecretSharingCodecChangingSeed;
 import com.shroman.secureraid.codec.RC4Codec;
+import com.shroman.secureraid.codec.RC4CodecConstantKey;
 import com.shroman.secureraid.codec.SecretSharingCodec;
+import com.shroman.secureraid.codec.SecretSharingCodecChangingSeed;
 import com.shroman.secureraid.codec.SecureBackblazeRS;
+import com.shroman.secureraid.codec.SecureBackblazeRSChangingSeed;
 import com.shroman.secureraid.codec.SecureEvenodd;
 import com.shroman.secureraid.codec.SecureJerasureRS;
 import com.shroman.secureraid.utils.Utils;
@@ -32,6 +39,15 @@ public enum CodecType {
 			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandom(randomName, randomKey)).build();
 		}
 	},
+	SECURE_BACKBLAZE_RS_CHANGING_SEED("BBCS") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			SecureBackblazeRSChangingSeed.Builder builder = new SecureBackblazeRSChangingSeed.Builder();
+
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandom(randomName, randomKey)).build();
+		}
+	},
 	SECURE_JRS("JRS", "JERASURE", "SECURE_JERASURE_RS") {
 		@Override
 		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
@@ -48,18 +64,50 @@ public enum CodecType {
 			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandom(randomName, randomKey)).build();
 		}
 	},
-	AES_RS("AES", "AESRS", "AES_RS") {
+	AES_CONST_KEY("AES_CONST_KEY") {
 		@Override
 		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
-			AESCodec.Builder builder = new AESCodec.Builder();
+			AESCodecConstantKey.Builder builder = new AESCodecConstantKey.Builder();
 			builder.setKey(randomKey).setDataShardsNum(k).setParityShardsNum(r);
 			return builder.build();
 		}
 	},
-	RC4_RS("RC4", "RC4RS", "RC4_RS") {
+	RC4_CONST_KEY("RC4_CONST_KEY") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			RC4CodecConstantKey.Builder builder = new RC4CodecConstantKey.Builder();
+			builder.setKey(randomKey).setDataShardsNum(k).setParityShardsNum(r);
+			return builder.build();
+		}
+	},
+	AES("AES") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			AESCodec.Builder builder = new AESCodec.Builder();
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.build();
+		}
+	},
+	RC4("RC4") {
 		@Override
 		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			RC4Codec.Builder builder = new RC4Codec.Builder();
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.build();
+		}
+	},
+	AONT_AES("AONT_AES") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			AONTAES.Builder builder = new AONTAES.Builder();
+			builder.setKey(randomKey).setDataShardsNum(k).setParityShardsNum(r);
+			return builder.build();
+		}
+	},
+	AONT_RC4("AONT_RC4") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			AONTRC4.Builder builder = new AONTRC4.Builder();
 			builder.setKey(randomKey).setDataShardsNum(k).setParityShardsNum(r);
 			return builder.build();
 		}
@@ -69,7 +117,21 @@ public enum CodecType {
 		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			SecretSharingCodec.Builder builder = new SecretSharingCodec.Builder();
 
-			if (k > 2) {
+			if (k > 1) {
+				throw new UnsupportedOperationException();
+			}
+
+			builder.setRandom(RandomType.getRandom(randomName, randomKey)).setSecrecyShardsNum(z).setDataShardsNum(k)
+					.setParityShardsNum(r);
+			return builder.build();
+		}
+	},
+	SHAMIR_SECRET_SHARING_CHANGING_SEED("SSSCS", "SHAMIRCS") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			SecretSharingCodecChangingSeed.Builder builder = new SecretSharingCodecChangingSeed.Builder();
+
+			if (k > 1) {
 				throw new UnsupportedOperationException();
 			}
 
@@ -82,6 +144,15 @@ public enum CodecType {
 		@Override
 		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
 			PackedSecretSharingCodec.Builder builder = new PackedSecretSharingCodec.Builder();
+			builder.setRandom(RandomType.getRandom(randomName, randomKey)).setSecrecyShardsNum(z).setDataShardsNum(k)
+					.setParityShardsNum(r);
+			return builder.build();
+		}
+	},
+	PACKED_SECRET_SHARING_CHANGING_SEED("PSSCS", "PACKEDCS") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName, String randomKey) {
+			PackedSecretSharingCodecChangingSeed.Builder builder = new PackedSecretSharingCodecChangingSeed.Builder();
 			builder.setRandom(RandomType.getRandom(randomName, randomKey)).setSecrecyShardsNum(z).setDataShardsNum(k)
 					.setParityShardsNum(r);
 			return builder.build();
