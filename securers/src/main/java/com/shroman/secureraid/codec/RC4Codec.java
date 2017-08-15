@@ -7,6 +7,7 @@ import org.bouncycastle.crypto.engines.RC4Engine;
 import org.bouncycastle.crypto.params.KeyParameter;
 
 public class RC4Codec extends CryptoCodecWithKey {
+	public static final int KEY_SIZE = 16;
 	public static class Builder extends CryptoCodecWithKey.Builder {
 		private RC4Codec codec;
 
@@ -68,7 +69,7 @@ public class RC4Codec extends CryptoCodecWithKey {
 
 	@Override
 	public int getKeySize() {
-		return 16;
+		return KEY_SIZE;
 	}
 
 	private byte[][] encrypt(byte[][] data, CipherParameters cipherParameters) throws InvalidCipherTextException {

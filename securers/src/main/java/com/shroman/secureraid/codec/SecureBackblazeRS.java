@@ -1,6 +1,6 @@
 package com.shroman.secureraid.codec;
 
-import com.backblaze.erasure.InputOutputByteTableCodingLoop;
+import com.backblaze.erasure.OutputInputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 
 public class SecureBackblazeRS extends SecureCodec {
@@ -42,7 +42,7 @@ public class SecureBackblazeRS extends SecureCodec {
 		if (getSecrecyShardsNum() > 0) {
 			decrypt = SecureBackblazeRS::decrypt;
 			secrecyRS = new ReedSolomon(getSecrecyShardsNum(), getParityShardsNum() + getDataShardsNum(),
-					new InputOutputByteTableCodingLoop());
+					new OutputInputByteTableCodingLoop());
 		} else {
 			decrypt = SecureBackblazeRS::emptyDecrypt;
 		}
@@ -50,7 +50,7 @@ public class SecureBackblazeRS extends SecureCodec {
 		if (getParityShardsNum() > 0) {
 			decodeMissing = SecureBackblazeRS::decodeMissing;
 			parityRS = new ReedSolomon(getSecrecyShardsNum() + getDataShardsNum(), getParityShardsNum(),
-					new InputOutputByteTableCodingLoop());
+					new OutputInputByteTableCodingLoop());
 		} else {
 			decodeMissing = SecureBackblazeRS::emptyDecodeMissing;
 		}

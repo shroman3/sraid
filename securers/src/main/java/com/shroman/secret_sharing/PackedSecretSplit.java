@@ -36,11 +36,8 @@ public class PackedSecretSplit {
 		while (existingShares.size() < n) {
 			int proposed = random.nextInt(256 - threshold) + 1;
 
-			while (existingShares.contains(proposed)) {
-				proposed = (proposed + 1) % 254 + 1;
-			}
-			if (proposed > 255) {
-				throw new RuntimeException("Shares calculated wrong: " + existingShares + " new share: " + proposed);
+			if (existingShares.contains(proposed)) {
+				continue;
 			}
 			shareIndexes[existingShares.size()] = proposed;
 			existingShares.add(proposed);

@@ -182,7 +182,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		return true;
 	}
 
-	private boolean[] chunksPresent(byte[][] chunks) {
+	private boolean[] chunksPresent(byte[][] chunks, int chunkSize) {
 		boolean[] shardPresent = new boolean[codec.getSize()];
 		int shardsCount = 0;
 		for (int j = 0; j < codec.getSize() && shardsCount < shouldPresent; ++j) {
@@ -190,7 +190,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			if (shardPresent[j]) {
 				shardsCount++;
 			} else {
-				chunks[j] = new byte[getChunkSize(chunks)];
+				chunks[j] = new byte[chunkSize];
 			}
 		}
 		return shardPresent;
@@ -218,7 +218,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private void decode(Integer chunkId, byte[][] chunks) {
 		int chunkSize = getChunkSize(chunks);
 		StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(chunkSize), decodeLogger);
-		byte[][] decode = codec.decode(chunksPresent(chunks), chunks, chunkSize, getKey(chunkId));
+		byte[][] decode = codec.decode(chunksPresent(chunks, chunkSize), chunks, chunkSize, getKey(chunkId));
 		
 		long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
 		long[] origChecksum = checksumMap.get(chunkId);
@@ -234,7 +234,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	}
 
 	private byte[] getKey(Integer chunkId) {
-		if (codec.isKeyNeeded()) {			
+		if (codec.isKeyNeeded()) {
 			return keysMap.get(chunkId);
 		}
 		return null;

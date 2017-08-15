@@ -39,7 +39,7 @@ import com.shroman.secureraid.utils.XMLParsingException;
 public class WriteClient {
 	private static final String ITEMS_FILENAME = "items.ser";
 	private static final String CONFIG_XML = "config.xml";
-	private static final int BYTES_IN_MEGABYTE = 1048576; //1048512; // Really it is 1048576 we reduce 64 bytes for padding;
+//	private static final int BYTES_IN_MEGABYTE = 1048440;//1048064; //1048512; // Really it is 1048576 we reduce 64 bytes for padding;
 	private List<Connection> servers = new ArrayList<>();
 	private Map<String, Item> itemsMap = new HashMap<>();
 	private int itemIdGenerator = 0;
@@ -89,7 +89,7 @@ public class WriteClient {
 		logger = Logger.getLogger("Encode");
 		config = new Config(xmlGetter);
 		clientId = xmlGetter.getIntField("client", "id");
-		stripeSize = xmlGetter.getIntField("client", "stripe_size") * BYTES_IN_MEGABYTE;
+		stripeSize = xmlGetter.getIntField("client", "stripe_size") * codec.getBytesInMegaBeforePadding(); //BYTES_IN_MEGABYTE;
 		shardSize = stripeSize / codec.getDataShardsNum();
 		reader = new ReadClient(codec, config, serversNum, stepSize);
 		this.operation = operation;
@@ -170,7 +170,7 @@ public class WriteClient {
 		}
 	}
 
-	void degReadFile(String fileName) {
+	void serverFailureReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			reader.readStripe(item, i);
@@ -186,8 +186,8 @@ public class WriteClient {
 			}
 		}
 	}
-
-	void deg2ReadFile(String fileName) {
+	
+	void serverFailure2ReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			reader.readStripe(item, i);
@@ -200,6 +200,30 @@ public class WriteClient {
 					chunksRequested++;
 				}
 				j++;
+			}
+		}
+	}
+	
+	void degReadFile(String fileName) {
+		Item item = itemsMap.get(fileName);
+		for (int i = 0; i < item.getStripesNumber(); i++) {
+			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
+			reader.readStripe(item, i);
+			for (int j = 1; j < (codec.getSize() - codec.getParityShardsNum() + 1); j++) {
+				int serverId = (j + stripeStep) % serversNum;
+				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
+			}
+		}
+	}	
+	
+	void deg2ReadFile(String fileName) {
+		Item item = itemsMap.get(fileName);
+		for (int i = 0; i < item.getStripesNumber(); i++) {
+			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
+			reader.readStripe(item, i);
+			for (int j = 2; j < (codec.getSize() - codec.getParityShardsNum() + 2); j++) {
+				int serverId = (j + stripeStep) % serversNum;
+				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
 	}
@@ -278,12 +302,13 @@ public class WriteClient {
 			throws XMLParsingException, UnknownHostException, IOException {
 		Iterator<Getter> iterator = xmlGetter.getIterator("connections", "server");
 		for (int i = 0; i < size; i++) {
-			Getter getter = iterator.next();
-			ServerConnectionWriter serverConnection = new ServerConnectionWriter(i, clientId,
-					getter.getAttribute("host"), getter.getIntAttribute("port"), reader, config);
-			servers.add(serverConnection);
-			serverConnection.start();
+				Getter getter = iterator.next();
+				ServerConnectionWriter serverConnection = new ServerConnectionWriter(i, clientId,
+						getter.getAttribute("host"), getter.getIntAttribute("port"), reader, config);
+				servers.add(serverConnection);
+				serverConnection.start();
 		}
+			
 	}
 
 	private void initMockConnections(int size) {

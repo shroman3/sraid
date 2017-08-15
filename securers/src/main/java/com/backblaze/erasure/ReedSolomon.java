@@ -27,7 +27,7 @@ public class ReedSolomon {
 	 * Creates a ReedSolomon codec with the default coding loop.
 	 */
 	public static ReedSolomon create(int dataShardCount, int parityShardCount) {
-		return new ReedSolomon(dataShardCount, parityShardCount, new InputOutputByteTableCodingLoop());
+		return new ReedSolomon(dataShardCount, parityShardCount, new OutputInputByteTableCodingLoop());
 	}
 
 	/**
@@ -90,7 +90,7 @@ public class ReedSolomon {
 	 */
 	public void encodeParity(byte[][] shards, int offset, int byteCount) {
 		// Check arguments.
-		checkBuffersAndSizes(shards, offset, byteCount);
+		checkBuffersAndSizes(shards, offset, byteCount, shards.length);
 
 		// Build the array of output buffers.
 		byte[][] outputs = new byte[parityShardCount][];
@@ -115,7 +115,7 @@ public class ReedSolomon {
 	 */
 	public void encodePartialParity(byte[][] shards, int offset, int byteCount, int parityNum) {
 		// Check arguments.
-		checkBuffersAndSizes(shards, offset, byteCount);
+		checkBuffersAndSizes(shards, offset, byteCount, dataShardCount + parityNum);
 
 		// Build the array of output buffers.
 		byte[][] outputs = new byte[parityNum][];
@@ -139,7 +139,7 @@ public class ReedSolomon {
 	 */
 	public boolean isParityCorrect(byte[][] shards, int firstByte, int byteCount) {
 		// Check arguments.
-		checkBuffersAndSizes(shards, firstByte, byteCount);
+		checkBuffersAndSizes(shards, firstByte, byteCount, shards.length);
 
 		// Build the array of buffers being checked.
 		byte[][] toCheck = new byte[parityShardCount][];
@@ -170,7 +170,7 @@ public class ReedSolomon {
 	 */
 	public boolean isParityCorrect(byte[][] shards, int firstByte, int byteCount, byte[] tempBuffer) {
 		// Check arguments.
-		checkBuffersAndSizes(shards, firstByte, byteCount);
+		checkBuffersAndSizes(shards, firstByte, byteCount, shards.length);
 		if (tempBuffer.length < firstByte + byteCount) {
 			throw new IllegalArgumentException("tempBuffer is not big enough");
 		}
@@ -194,27 +194,28 @@ public class ReedSolomon {
 	 * in those shards is recomputed and filled in.
 	 */
 	public void decodeMissing(byte[][] shards, boolean[] shardPresent, final int offset, final int byteCount) {
-		// Check arguments.
-		checkBuffersAndSizes(shards, offset, byteCount);
 
 		// Quick check: are all of the shards present? If so, there's
 		// nothing to do.
-		int numberPresent = 0;
-		for (int i = 0; i < totalShardCount; i++) {
-			if (shardPresent[i]) {
-				numberPresent += 1;
+		int numberMissing = 0;
+		for (int i = 0; i < dataShardCount; i++) {
+			if (!shardPresent[i]) {
+				numberMissing += 1;
 			}
 		}
-		if (numberPresent == totalShardCount) {
-			// Cool. All of the shards data data. We don't
-			// need to do anything.
-			return;
-		}
+		// Check arguments.
+		checkBuffersAndSizes(shards, offset, byteCount, shards.length - numberMissing);
 
-		// More complete sanity check
-		if (numberPresent < dataShardCount) {
-			throw new IllegalArgumentException("Not enough shards present");
-		}
+//		if (numberPresent == totalShardCount) {
+//			// Cool. All of the shards data data. We don't
+//			// need to do anything.
+//			return;
+//		}
+//
+//		// More complete sanity check
+//		if (numberPresent < dataShardCount) {
+//			throw new IllegalArgumentException("Not enough shards present");
+//		}
 
 		// Pull out the rows of the matrix that correspond to the
 		// shards that we have and build a square matrix. This
@@ -283,8 +284,9 @@ public class ReedSolomon {
 
 	/**
 	 * Checks the consistency of arguments passed to public methods.
+	 * @param shardsNum 
 	 */
-	private void checkBuffersAndSizes(byte[][] shards, int offset, int byteCount) {
+	private void checkBuffersAndSizes(byte[][] shards, int offset, int byteCount, int shardsNum) {
 		// The number of buffers should be equal to the number of
 		// data shards plus the number of parity shards.
 		if (shards.length != totalShardCount) {
@@ -293,7 +295,8 @@ public class ReedSolomon {
 
 		// All of the shard buffers should be the same length.
 		int shardLength = shards[0].length;
-		for (int i = 1; i < shards.length; i++) {
+//		int shardsNum = shards.length;
+		for (int i = 1; i < shardsNum; i++) {
 			if (shards[i].length != shardLength) {
 				throw new IllegalArgumentException("Shards are different sizes");
 			}

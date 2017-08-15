@@ -81,20 +81,20 @@ public enum RandomType {
 			BigInteger seed = new BigInteger(randomKey.getBytes());
 			return new NoRandom(seed.longValue());
 		}
-	},//	DEV_RANDOM("DEV_RANDOM", "RANDOM") {
-//	@Override
-//	public Random buildRandom(String randomKey) {
-//		try {
-//			SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGBlocking");
-//			return secureRandom;
-//		} catch (NoSuchAlgorithmException e) {
-//			e.printStackTrace();
-//			System.out.println("Problem creating NativePRNGBlocking");
-//			return new SecureRandom();
-//		}
-//	}
-//},
-	;
+	},	
+	DEV_RANDOM("DEV_RANDOM", "RANDOM") {
+		@Override
+		public Random buildRandom(String randomKey) {
+			try {
+				SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGBlocking");
+				return secureRandom;
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+				System.out.println("Problem creating NativePRNGBlocking");
+				return new SecureRandom();
+			}
+		}
+	};
 
 	private String[] randomNames;
 

@@ -13,8 +13,8 @@ import org.bouncycastle.crypto.params.KeyParameter;
 import com.shroman.secureraid.utils.Utils;
 
 public class AONTRC4 extends CryptoCodecConstantKey {
-	private static final int KEY_SIZE = 16;
-	
+	public static final int BYTES_IN_MEGABYTE_WITHOUT_PADDING = 1048568;// After padding it is 1048576
+
 	public static class Builder extends CryptoCodecConstantKey.Builder {
 		private AONTRC4 codec;
 
@@ -51,13 +51,13 @@ public class AONTRC4 extends CryptoCodecConstantKey {
 
 	AONTRC4(AONTRC4 other) {
 		super(other);
-		keySize = (int) Math.ceil((double)KEY_SIZE/getDataShardsNum());
+		keySize = (int) Math.ceil((double)RC4Codec.KEY_SIZE/getDataShardsNum());
 		trueRandom = Utils.createTrueRandom();
 	}
 
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
-		byte[] key = new byte[KEY_SIZE];
+		byte[] key = new byte[RC4Codec.KEY_SIZE];
 		trueRandom.nextBytes(key);	
 		CipherParameters cipherParameters = new KeyParameter(key);
 		
@@ -76,7 +76,7 @@ public class AONTRC4 extends CryptoCodecConstantKey {
 	@Override
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
 		decodeRS(shardPresent, shards, shardSize);
-		byte[] key = new byte[KEY_SIZE];
+		byte[] key = new byte[RC4Codec.KEY_SIZE];
 
 		AONTAES.getKeyFromShards(shards, shardSize, key, keySize);
 		AONTAES.hashEncryptedAndXORwithKey(key, shardSize - keySize, shards, getMD5Digest(), getDataShardsNum());
@@ -96,7 +96,12 @@ public class AONTRC4 extends CryptoCodecConstantKey {
 	public Builder getSelfBuilder() {
 		return new Builder(this);
 	}
-
+	
+	@Override
+	public int getBytesInMegaBeforePadding() {
+		return BYTES_IN_MEGABYTE_WITHOUT_PADDING;
+	}
+	
 	public void encrypt(byte[][] data, CipherParameters cipherParameters, int inputLength, byte[][] output) throws InvalidCipherTextException {
 		RC4Engine encrypt = new RC4Engine();
         encrypt.init(true, cipherParameters);

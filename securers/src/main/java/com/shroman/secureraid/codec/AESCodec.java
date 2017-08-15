@@ -12,6 +12,9 @@ import org.bouncycastle.crypto.paddings.ZeroBytePadding;
 import org.bouncycastle.crypto.params.KeyParameter;
 
 public class AESCodec extends CryptoCodecWithKey {
+	public static final int BYTES_IN_MEGABYTE_WITHOUT_PADDING = 1048448;// After padding it is 1048576
+	public static final int KEY_SIZE = 32;
+
 	public static class Builder extends CryptoCodecWithKey.Builder {
 		private AESCodec codec;
 
@@ -88,7 +91,11 @@ public class AESCodec extends CryptoCodecWithKey {
 	public Builder getSelfBuilder() {
 		return new Builder(this);
 	}
-
+	
+	@Override
+	public int getBytesInMegaBeforePadding() {
+		return BYTES_IN_MEGABYTE_WITHOUT_PADDING;
+	}
 
 	@Override
 	public int getKeySize() {

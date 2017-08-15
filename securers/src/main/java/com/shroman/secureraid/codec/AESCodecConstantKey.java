@@ -94,6 +94,11 @@ public class AESCodecConstantKey extends CryptoCodecConstantKey {
 		return new Builder(this);
 	}
 
+	@Override
+	public int getBytesInMegaBeforePadding() {
+		return AESCodec.BYTES_IN_MEGABYTE_WITHOUT_PADDING;
+	}
+	
 	public byte[][] encrypt(byte[][] data, BufferedBlockCipher bufferedBlockCipher)
 			throws InvalidCipherTextException {
 		bufferedBlockCipher.init(true, cipherParameters);

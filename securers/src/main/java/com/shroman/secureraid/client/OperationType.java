@@ -57,12 +57,44 @@ public enum OperationType {
 			client.finalizeReader();
 		}
 	},
-	DEG_READ("DR", "DEG", "DEGREAD", "DR1", "DEG1", "DEGREAD1") {
+	SERVER_FAILIURE("SF", "FAIL", "SF1", "FAIL1") {
 		@Override
 		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
 			client.initReader();
 		}
 		
+		@Override
+		public void run(String fileName, WriteClient client) throws IOException {
+			client.serverFailureReadFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
+			client.finalizeReader();
+		}
+	},
+	SERVER_FAILURE_2("SF2", "FAIL2") {
+		@Override
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+			client.initReader();			
+		}
+
+		@Override
+		public void run(String fileName, WriteClient client) throws IOException {
+			client.serverFailure2ReadFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
+			client.finalizeReader();
+		}
+	},
+	DEG_READ("DR", "DEG", "DEGREAD", "DR1", "DEG1", "DEGREAD1") {
+		@Override
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+			client.initReader();			
+		}
+
 		@Override
 		public void run(String fileName, WriteClient client) throws IOException {
 			client.degReadFile(fileName);
@@ -97,7 +129,7 @@ public enum OperationType {
 
 		@Override
 		public void run(String fileName, WriteClient client) throws IOException {
-			client.deg2ReadFile(fileName);
+			client.serverFailure2ReadFile(fileName);
 		}
 		
 		@Override
