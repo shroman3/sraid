@@ -3,7 +3,7 @@ package com.shroman.secureraid.codec;
 import com.shroman.secureraid.utils.Utils;
 
 public abstract class Codec {
-	private static final int BYTES_IN_MEGABYTE = 1048440;//1048064; //1048512; // Really it is 1048576 we reduce 64 bytes for padding;
+	private static final int BYTES_IN_MEGABYTE = 1048576;//No padding
 
 	public static abstract class Builder {
 		private Codec codec;
