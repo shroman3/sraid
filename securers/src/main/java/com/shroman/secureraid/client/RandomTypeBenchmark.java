@@ -8,12 +8,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 public class RandomTypeBenchmark {
     private static final int BUFFER_SIZE = 1024 * 4;
     
     private static final long MEASUREMENT_DURATION = 1000;
 
 	public static void main(String [] args) {
+		Security.addProvider(new BouncyCastleProvider());
+//		((SSLSocketFactory)SSLSocketFactory.getDefault()).getDefaultCipherSuites();
+//		System.out.println("--== Supported ==--");
+//		for (String suite : ((SSLSocketFactory)SSLSocketFactory.getDefault()).getSupportedCipherSuites()) {
+//			System.out.println(suite);
+//		}
+//		System.out.println("--== Default ==--");
+//		for (String suite : ((SSLSocketFactory)SSLSocketFactory.getDefault()).getDefaultCipherSuites()) {
+//			System.out.println(suite);
+//		}
         (new RandomTypeBenchmark()).run();
     }
 
@@ -41,7 +53,7 @@ public class RandomTypeBenchmark {
             {
                 final String testName = randomType.name() + " generating RANDOM";
                 System.out.println("\nTEST: " + testName);
-                Random random = randomType.buildRandom("random_string$for^generating@numbers");
+                Random random = randomType.getRandom();
                 System.out.println("		warm up...");
                 doOneMeasurement(random, tempBuffer);
                 doOneMeasurement(random, tempBuffer);

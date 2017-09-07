@@ -1,8 +1,7 @@
 package com.shroman.secureraid.securers;
 
-import java.util.Random;
-import java.util.concurrent.ArrayBlockingQueue;
-
+import com.backblaze.erasure.InputOutputByteTableCodingLoop;
+import com.backblaze.erasure.ReedSolomon;
 import com.shroman.secureraid.client.RandomType;
 
 import junit.framework.Test;
@@ -34,17 +33,20 @@ public class AppTest extends TestCase {
 	 * Rigourous Test :-)
 	 */
 	public void testApp() {
-		
+		ReedSolomon secure1 = new ReedSolomon(2, 4, new InputOutputByteTableCodingLoop());
+		ReedSolomon secure2 = new ReedSolomon(2, 6, new InputOutputByteTableCodingLoop());
 //		ReedSolomon secure = new ReedSolomon(2, 4, new InputOutputByteTableCodingLoop());
 //		ReedSolomon parity = new ReedSolomon(4, 2, new InputOutputByteTableCodingLoop());
 //
-//		byte[][] data = new byte[6][1];
-//		data[2][0] = 5;
-//		data[3][0] = (byte) 255;
-//
-//		data[1][0] = 127;
-//		data[0][0] = 32;
-//		secure.encodePartialParity(data, 0, 1, 2);
+		byte[][] data = new byte[6][1];
+		data[2][0] = 5;
+		data[3][0] = (byte) 255;
+
+		data[1][0] = 127;
+		data[0][0] = 32;
+		secure1.encodePartialParity(data, 0, 1, 2);
+		secure2.encodePartialParity(data, 0, 1, 2);
+		System.out.println(data);
 //
 //		parity.encodeParity(data, 0, 1);
 //		//
@@ -85,7 +87,7 @@ public class AppTest extends TestCase {
 	
 	public void testRandomGenerators() {
 		for (RandomType random : RandomType.values()) {
-			random.buildRandom("randomKey");
+			random.getRandom();
 		}
 	}
 }

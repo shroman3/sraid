@@ -71,6 +71,9 @@ public class ReadClient extends Thread implements PushResponseInterface {
 					chunksMap.remove(stripeId);
 					Long timestamp = timestampMap.remove(stripeId);
 					stripeLogger.info(Utils.buildLogMessage(timestamp, stripeId, ""));
+					if (timestampMap.isEmpty()) {
+						logThroughput();
+					}
 				} else {
 					chunksMap.put(stripeId, chunksNum);
 				}
@@ -79,16 +82,18 @@ public class ReadClient extends Thread implements PushResponseInterface {
 			synchronized (mutex) {
 				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
 				byte[][] responses = readMap.get(stripeId);
-				int chunkId = (((serverId - (response.getChunkId() + response.getObjectId()) * stepSize) % serversNum)
-						+ serversNum) % serversNum;
-				responses[chunkId] = response.getData();
-				Integer chunksNum = chunksMap.get(stripeId);
-				if (chunksNum == null) {
-					chunksMap.put(stripeId, 1);
-				} else {
-					chunksMap.put(stripeId, chunksNum + 1);
+				if (responses != null) {					
+					int chunkId = (((serverId - (response.getChunkId() + response.getObjectId()) * stepSize) % serversNum)
+							+ serversNum) % serversNum;
+					responses[chunkId] = response.getData();
+					Integer chunksNum = chunksMap.get(stripeId);
+					if (chunksNum == null) {
+						chunksMap.put(stripeId, 1);
+					} else {
+						chunksMap.put(stripeId, chunksNum + 1);
+					}
+					mutex.notifyAll();
 				}
-				mutex.notifyAll();
 			}
 		}
 	}
@@ -182,31 +187,17 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		return true;
 	}
 
-	private boolean[] chunksPresent(byte[][] chunks, int chunkSize) {
-		boolean[] shardPresent = new boolean[codec.getSize()];
-		int shardsCount = 0;
-		for (int j = 0; j < codec.getSize() && shardsCount < shouldPresent; ++j) {
-			shardPresent[j] = (chunks[j] != null);
-			if (shardPresent[j]) {
-				shardsCount++;
-			} else {
-				chunks[j] = new byte[chunkSize];
-			}
-		}
-		return shardPresent;
-	}
-
 	private int calcStripeId(int itemId, int stripeId) {
 		return (itemId << 10) + stripeId;
 	}
 
 	private long[] calcChecksum(byte[][] dataShards, int size) {
-		CRC32 crc = new CRC32();
 		long[] checksums = new long[dataShards.length];
 		for (int i = 0; i < dataShards.length; i++) {
 			if (dataShards[i] == null) {
 				checksums[i] = -1;
 			} else {
+				CRC32 crc = new CRC32();
 				// IMPORTANT size is reduced for the AONT, this is only a debug feature.
 				crc.update(dataShards[i], 0, size/*-32*/);
 				checksums[i] = crc.getValue();
@@ -218,7 +209,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private void decode(Integer chunkId, byte[][] chunks) {
 		int chunkSize = getChunkSize(chunks);
 		StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(chunkSize), decodeLogger);
-		byte[][] decode = codec.decode(chunksPresent(chunks, chunkSize), chunks, chunkSize, getKey(chunkId));
+		byte[][] decode = codec.decode(chunks, chunkSize, getKey(chunkId));
 		
 		long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
 		long[] origChecksum = checksumMap.get(chunkId);

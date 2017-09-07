@@ -23,11 +23,12 @@ package com.shroman.secureraid.utils;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+
+import com.shroman.secureraid.common.CommonUtils;
 
 public class Utils {
 	public static void validateNotNull(Object param, String paramName) {
@@ -90,7 +91,7 @@ public class Utils {
 			}
 		};
 		return new ThreadPoolExecutor(threadsNum, threadsNum, 0L, TimeUnit.MILLISECONDS,
-				new ArrayBlockingQueue<Runnable>(maxTasksNum), rejectedExecutionHandler);
+				CommonUtils.getBlockingQueue(maxTasksNum), rejectedExecutionHandler);
 	}
 
 	public static String buildLogMessage(Long timestamp, int stripeId, String message) {

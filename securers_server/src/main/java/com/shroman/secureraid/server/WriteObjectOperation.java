@@ -1,5 +1,6 @@
 package com.shroman.secureraid.server;
 
+//import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +20,11 @@ public class WriteObjectOperation extends Operation {
 	@Override
 	protected Response execute(Path executionPath, Message message) throws IOException {
 		Path file = Paths.get(executionPath.toString(), message.getObjectId() + "-" + message.getChunkId());
+//		DirectRandomAccessFile fout =
+//		        new DirectRandomAccessFile(file.toString(), "rw");
+//		fout.write(message.getData(),0,message.getData().length);
+//		fout.close();
+		
 		Files.write(file, message.getData());
 		return new Response(ResponseType.WRITE, null, message.getObjectId(), message.getChunkId());
 	}

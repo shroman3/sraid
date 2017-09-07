@@ -17,10 +17,9 @@ public class SecureEvenoddTest {
 		int k = 3;
 		int z = 2;
 		int r = 2;
-		Random random = RandomType.AES.buildRandom("random_key");
 		
-		byte[][] data = initData(k, SHARD_SIZE, random);
-		byte[][] decoded = testEvenodd(n, k, z, r, random, duplicate(data));
+		byte[][] data = initData(k, SHARD_SIZE, RandomType.AES.getRandom());
+		byte[][] decoded = testEvenodd(n, k, z, r, RandomType.AES, duplicate(data));
 		compare(data, decoded);
 	}
 
@@ -38,7 +37,7 @@ public class SecureEvenoddTest {
 		return duplicated;
 	}
 
-	private byte[][] testEvenodd(int n, int k, int z, int r, Random random, byte[][] data) {
+	private byte[][] testEvenodd(int n, int k, int z, int r, RandomType random, byte[][] data) {
 		SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
 		builder.setRandom(random).setSecrecyShardsNum(z)
 					.setDataShardsNum(k).setParityShardsNum(r);
@@ -46,7 +45,7 @@ public class SecureEvenoddTest {
 		
 		byte[][] encode = secureEvenodd.encode(SHARD_SIZE, data);
 		
-		boolean[] present = getrandomShardsPresent(n, k+z, random);
+		boolean[] present = getrandomShardsPresent(n, k+z, random.getRandom());
 		byte[][] decode = secureEvenodd.decode(present, encode, SHARD_SIZE);
 		return decode;
 	}

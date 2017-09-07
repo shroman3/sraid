@@ -33,6 +33,13 @@ public class AppTest
      */
     public void testApp()
     {
-        assertTrue( true );
+//        assertTrue( true );
+    	byte one  = -1;
+    	int two = unsignedToBytes(one);
+    	System.out.println(two);
     }
+	
+    public static int unsignedToBytes(byte b) {
+		return b & 0xFF;
+	}
 }

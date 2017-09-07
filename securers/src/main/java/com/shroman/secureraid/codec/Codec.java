@@ -3,7 +3,7 @@ package com.shroman.secureraid.codec;
 import com.shroman.secureraid.utils.Utils;
 
 public abstract class Codec {
-	private static final int BYTES_IN_MEGABYTE = 1048576;//No padding
+	public static final int BYTES_IN_MEGABYTE = 1048576;//No padding
 
 	public static abstract class Builder {
 		private Codec codec;
@@ -53,7 +53,7 @@ public abstract class Codec {
 
 	public abstract byte[][] encode(int shardSize, byte[][] data, byte[] key);
 
-	public abstract byte[][] decode(boolean [] shardPresent, byte[][] shards, int shardSize, byte[] key);
+	protected abstract byte[][] decode(boolean [] shardPresent, byte[][] shards, int shardSize, byte[] key);
 
 	public abstract byte[] generateKey();
 	
@@ -73,5 +73,27 @@ public abstract class Codec {
 	
 	public int getBytesInMegaBeforePadding() {
 		return BYTES_IN_MEGABYTE;
+	}
+	
+	public byte[][] decode(byte[][] shards, int shardSize, byte[] key) {
+		return decode(chunksPresent(shards, shardSize), shards, shardSize, key);
+	}
+	
+	public boolean hasRandomRead() {
+		return false;
+	}
+	
+	protected boolean[] chunksPresent(byte[][] chunks, int chunkSize) {
+		boolean[] shardPresent = new boolean[size];
+		int shardsCount = 0;
+		for (int j = 0; j < (size) && shardsCount < (size-parityShardsNum); ++j) {
+			shardPresent[j] = (chunks[j] != null);
+			if (shardPresent[j]) {
+				shardsCount++;
+			} else {
+				chunks[j] = new byte[chunkSize];
+			}
+		}
+		return shardPresent;
 	}
 }

@@ -53,6 +53,15 @@ public class PackedSecretSharingCodec extends SecureCodec {
 
 	@Override
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
+		PackedSecretCombine combine = buildPSCombine(shardPresent, shards);
+		byte[][] secret = new byte[getDataShardsNum()][];
+		for (int i = 0; i < secret.length; i++) {
+			secret[i] = combine.extractSecret(i); 
+		}
+		return secret;
+	}
+
+	protected PackedSecretCombine buildPSCombine(boolean[] shardPresent, byte[][] shards) {
 		int[] shareIndexes = new int[getDataShardsNum() + getSecrecyShardsNum()];
 		byte[][] shares = new byte[shareIndexes.length][];
 		int sharesPresent = 0;
@@ -64,11 +73,15 @@ public class PackedSecretSharingCodec extends SecureCodec {
 			}
 		}
 		
-		PackedSecretCombine combine = new PackedSecretCombine(shareIndexes, shares);
-		byte[][] secret = new byte[getDataShardsNum()][];
-		for (int i = 0; i < secret.length; i++) {
-			secret[i] = combine.extractSecret(i); 
+		return new PackedSecretCombine(shareIndexes, shares);
+	}
+	
+	@Override
+	protected boolean[] chunksPresent(byte[][] chunks, int chunkSize) {
+		boolean[] shardPresent = new boolean[getSize()];
+		for (int j = 0; j < getSize(); ++j) {
+			shardPresent[j] = (chunks[j] != null);
 		}
-		return secret;
+		return shardPresent;
 	}
 }

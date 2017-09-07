@@ -1,6 +1,5 @@
 package com.shroman.secureraid.client;
 
-import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -8,85 +7,36 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
-import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.digests.MD5Digest;
 import org.uncommons.maths.random.AESCounterRNG;
 
+import com.shroman.secureraid.codec.SecureCodec;
 import com.shroman.secureraid.utils.Utils;
 
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
 
-public enum RandomType {
+public enum RandomType implements SecureCodec.RandomGetter {
 	AES("AES") {
+		private final MD5Digest MD5_DIGEST = new MD5Digest();
 		@Override
-		public Random buildRandom(String randomKey) {
+		public Random getRandom() {
 			try {
-				Digest digest = new MD5Digest();
-				digest.update(randomKey.getBytes(), 0, randomKey.getBytes().length);
-				byte[] key = new byte[digest.getDigestSize()];
-				digest.doFinal(key, 0);
+				byte[] key = new byte[MD5_DIGEST.getDigestSize()];
+				trueRandom.nextBytes(key);
 				AESCounterRNG aesRandom = new AESCounterRNG(key);
 				return aesRandom;
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 				System.out.println("Problem creating AESPRNG");
-				return new SecureRandom(randomKey.getBytes());
+				return new SecureRandom();
 			}
 		}
 	},
-	DEV_URANDOM("DEV_URANDOM", "URANDOM") {
+	BC_DEFAULT("BCD") {
 		@Override
-		public Random buildRandom(String randomKey) {
+		public Random getRandom() {
 			try {
-				SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGNonBlocking");
-				return secureRandom;
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-				System.out.println("Problem creating NativePRNGNonBlocking");
-				return new SecureRandom(randomKey.getBytes());
-			}
-		}
-	},
-	SHA1("SHA", "SHA1") {
-		@Override
-		public Random buildRandom(String randomKey) {
-			try {
-				SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
-				secureRandom.setSeed(randomKey.getBytes());
-				return secureRandom;
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-				System.out.println("Problem creating SHA1PRNG");
-				return new SecureRandom(randomKey.getBytes());
-			}
-		}
-	},
-	XOROSHIRO("XOR", "OSHIRO", "XOROSHIRO") {
-		@Override
-		public Random buildRandom(String randomKey) {
-			BigInteger seed = new BigInteger(randomKey.getBytes());
-			return new XoRoShiRo128PlusRandom(seed.longValue());
-		}
-	},
-	SIMPLE("SIMPLE") {
-		@Override
-		public Random buildRandom(String randomKey) {
-			BigInteger seed = new BigInteger(randomKey.getBytes());
-			return new Random(seed.longValue());
-		}
-	},
-	NONE("NO", "NONE") {
-		@Override
-		public Random buildRandom(String randomKey) {
-			BigInteger seed = new BigInteger(randomKey.getBytes());
-			return new NoRandom(seed.longValue());
-		}
-	},	
-	DEV_RANDOM("DEV_RANDOM", "RANDOM") {
-		@Override
-		public Random buildRandom(String randomKey) {
-			try {
-				SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGBlocking");
+				SecureRandom secureRandom = SecureRandom.getInstance("DEFAULT");
 				return secureRandom;
 			} catch (NoSuchAlgorithmException e) {
 				e.printStackTrace();
@@ -94,11 +44,92 @@ public enum RandomType {
 				return new SecureRandom();
 			}
 		}
-	};
+		
+	},
+	BC_NONCEANDIV("BCN") {
+		@Override
+		public Random getRandom() {
+			try {
+				SecureRandom secureRandom = SecureRandom.getInstance("NONCEANDIV");
+				return secureRandom;
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+				System.out.println("Problem creating NativePRNGBlocking");
+				return new SecureRandom();
+			}
+		}
+		
+	},
+	DEV_URANDOM("DEV_URANDOM", "URANDOM") {
+
+		@Override
+		public Random getRandom() {
+			try {
+				SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGNonBlocking");
+				secureRandom.setSeed(trueRandom.nextLong());
+				return secureRandom;
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+				System.out.println("Problem creating NativePRNGNonBlocking");
+				return new SecureRandom();
+			}		}
+
+	},
+	SHA1("SHA", "SHA1") {
+		@Override
+		public Random getRandom() {
+			try {
+				SecureRandom secureRandom = SecureRandom.getInstance("SHA1PRNG");
+				secureRandom.setSeed(trueRandom.nextLong());
+				return secureRandom;
+			} catch (NoSuchAlgorithmException e) {
+				e.printStackTrace();
+				System.out.println("Problem creating SHA1PRNG");
+				return new SecureRandom();
+			}
+		}
+	},
+	XOROSHIRO("XOR", "OSHIRO", "XOROSHIRO") {
+		@Override
+		public Random getRandom() {
+			return new XoRoShiRo128PlusRandom(trueRandom.nextLong());
+		}
+	},
+	SIMPLE("SIMPLE") {
+		@Override
+		public Random getRandom() {
+			return new Random(trueRandom.nextLong());
+		}
+	},
+	NONE("NO", "NONE") {
+		private NoRandom random = new NoRandom();
+
+		@Override
+		public Random getRandom() {
+			return random;
+		}
+	},
+//	DEV_RANDOM("DEV_RANDOM", "RANDOM") {
+//		@Override
+//		public Random getRandom() {
+//			try {
+//				SecureRandom secureRandom = SecureRandom.getInstance("NativePRNGBlocking");
+//				return secureRandom;
+//			} catch (NoSuchAlgorithmException e) {
+//				e.printStackTrace();
+//				System.out.println("Problem creating NativePRNGBlocking");
+//				return new SecureRandom();
+//			}
+//		}
+//	}
+	;
+
 
 	private String[] randomNames;
 
 	private static Map<String, RandomType> namesMap;
+	private static SecureRandom trueRandom;
+
 
 	private RandomType(String... codecNames) {
 		Utils.validateArrayNotEmpty(codecNames, "Codec names array");
@@ -109,16 +140,14 @@ public enum RandomType {
 		init();
 	}
 
-	public static Random getRandom(String randomName, String randomKey) {
+	public static RandomType getRandomType(String randomName) {
 		Utils.validateNotNull(randomName, "codec name");
-		Utils.validateNotNull(randomKey, "random key");
 		RandomType randomType = namesMap.get(randomName.toUpperCase());
-		return randomType.buildRandom(randomKey);
+		return randomType;
 	}
 
-	abstract public Random buildRandom(String randomKey);
-
 	private static void init() {
+		trueRandom = Utils.createTrueRandom();
 		Map<String, RandomType> names = new HashMap<>();
 		for (RandomType randomType : values()) {
 			for (String name : randomType.randomNames) {

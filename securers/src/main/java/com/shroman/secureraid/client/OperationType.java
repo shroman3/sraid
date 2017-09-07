@@ -2,6 +2,7 @@ package com.shroman.secureraid.client;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
@@ -9,7 +10,7 @@ import java.util.Scanner;
 import com.shroman.secureraid.utils.XMLParsingException;
 
 public enum OperationType {
-	ENCODING("E", "ENCODE") {
+	ENCODING("E", "ENCODE", "ENC") {
 		@Override
 		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException {
 			client.initEncoder();
@@ -27,7 +28,7 @@ public enum OperationType {
 	},
 	WRITE("W", "WRITE") {
 		@Override
-		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException {
+		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException, NoSuchAlgorithmException {
 			client.initWriter();
 		}
 		
@@ -43,7 +44,7 @@ public enum OperationType {
 	},
 	READ("R", "READ") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 			client.initReader();
 		}
 		
@@ -57,9 +58,25 @@ public enum OperationType {
 			client.finalizeReader();
 		}
 	},
+	FAST_READ("FR", "FAST_READ", "FREAD") {
+		@Override
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
+			client.initReader();
+		}
+		
+		@Override
+		void run(String fileName, WriteClient client) throws IOException {
+			client.fastReadFile(fileName);
+		}
+		
+		@Override
+		void finalizeOperation(WriteClient client) throws InterruptedException {
+			client.finalizeReader();
+		}
+	},
 	SERVER_FAILIURE("SF", "FAIL", "SF1", "FAIL1") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 			client.initReader();
 		}
 		
@@ -75,7 +92,7 @@ public enum OperationType {
 	},
 	SERVER_FAILURE_2("SF2", "FAIL2") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 			client.initReader();			
 		}
 
@@ -91,7 +108,7 @@ public enum OperationType {
 	},
 	DEG_READ("DR", "DEG", "DEGREAD", "DR1", "DEG1", "DEGREAD1") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 			client.initReader();			
 		}
 
@@ -107,7 +124,7 @@ public enum OperationType {
 	},
 	DEG_READ2("DR2", "DEG2", "DEGREAD2") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 			client.initReader();			
 		}
 
@@ -123,13 +140,13 @@ public enum OperationType {
 	},
 	DEG_RAND_CHUNK_READ("RCR", "RC", "RR") {
 		@Override
-		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException {
+		void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 			client.initRandomChunkReader();
 		}
 
 		@Override
 		public void run(String fileName, WriteClient client) throws IOException {
-			client.serverFailure2ReadFile(fileName);
+			client.randomChunkReadFile(fileName);
 		}
 		
 		@Override
@@ -139,14 +156,14 @@ public enum OperationType {
 	},
 	CLEAN("C", "CLEAN") {
 		@Override
-		public void run(Scanner inputFileScanner, WriteClient client) throws IOException, XMLParsingException, InterruptedException {
+		public void run(Scanner inputFileScanner, WriteClient client) throws IOException, XMLParsingException, InterruptedException, NoSuchAlgorithmException {
 			initOperation(client);
 			client.clean();
 			finalizeOperation(client);
 		}
 
 		@Override
-		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException {
+		void initOperation(WriteClient client) throws UnknownHostException, XMLParsingException, IOException, NoSuchAlgorithmException {
 			client.initWriter();
 		}
 		
@@ -160,7 +177,6 @@ public enum OperationType {
 		}
 	};
 	
-
 	private static Map<String, OperationType> operationsMap = buildOperationsNameMap();
 
 	private String[] operationNames;
@@ -187,7 +203,7 @@ public enum OperationType {
 		return map;
 	}
 
-	void run(Scanner inputFileScanner, WriteClient client) throws IOException, InterruptedException, ClassNotFoundException, XMLParsingException {
+	void run(Scanner inputFileScanner, WriteClient client) throws IOException, InterruptedException, ClassNotFoundException, XMLParsingException, NoSuchAlgorithmException {
 		initOperation(client);
 		while (inputFileScanner.hasNextLine()) {
 			String operationLine = inputFileScanner.nextLine().toLowerCase();
@@ -197,6 +213,6 @@ public enum OperationType {
 	}
 	
 	abstract void run(String fileName, WriteClient client) throws IOException;
-	abstract void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException;
+	abstract void initOperation(WriteClient client) throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException;
 	abstract void finalizeOperation(WriteClient client) throws InterruptedException, IOException;
 }

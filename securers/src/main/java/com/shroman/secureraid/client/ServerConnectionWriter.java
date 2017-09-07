@@ -6,14 +6,17 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLSocketFactory;
 
 import org.apache.log4j.Logger;
 import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
 
+import com.shroman.secureraid.common.CommonUtils;
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.MessageType;
 
@@ -27,14 +30,15 @@ class ServerConnectionWriter extends Thread implements Connection {
 	private Logger logger;
 	private boolean die = false;
 
-	ServerConnectionWriter(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse, Config config) throws UnknownHostException, IOException {
+	ServerConnectionWriter(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse, Config config) throws UnknownHostException, IOException, NoSuchAlgorithmException {
 		this.serverId = serverId;
 		this.host = host;
 		this.port = port;
 		this.pushResponse = pushResponse;
 		int queueSize = config.getServerConnectionQueueSize();
-		messages = new ArrayBlockingQueue<>(queueSize);
-		socket = new Socket(host, port);
+		messages = CommonUtils.getBlockingQueue(queueSize);
+//		socket = new Socket(host, port);
+		socket = SSLSocketFactory.getDefault().createSocket(host, port);
 		socket.getOutputStream().write(clientId);
 		socket.getOutputStream().write(queueSize);
         socket.getOutputStream().write(serverId);

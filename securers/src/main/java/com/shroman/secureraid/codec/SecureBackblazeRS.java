@@ -1,5 +1,7 @@
 package com.shroman.secureraid.codec;
 
+import java.util.Random;
+
 import com.backblaze.erasure.OutputInputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 
@@ -55,17 +57,23 @@ public class SecureBackblazeRS extends SecureCodec {
 			decodeMissing = SecureBackblazeRS::emptyDecodeMissing;
 		}
 	}
+	
+	protected ReedSolomon getSecrecyRS() {
+		return secrecyRS;
+	}
 
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
 		byte[][] shards = new byte[getSize()][];
-		for (int i = 0; i < getSecrecyShardsNum(); i++) {
-			shards[i] = new byte[shardSize];
-			getRandom().nextBytes(shards[i]);
-		}
 		System.arraycopy(data, 0, shards, getSecrecyShardsNum(), getDataShardsNum());
 		for (int i = getDataShardsNum() + getSecrecyShardsNum(); i < shards.length; i++) {
 			shards[i] = new byte[shardSize];
+		}
+		
+		Random random = getRandom();
+		for (int i = 0; i < getSecrecyShardsNum(); i++) {
+			shards[i] = new byte[shardSize];
+			random.nextBytes(shards[i]);
 		}
 
 		if (getSecrecyShardsNum() > 0) {

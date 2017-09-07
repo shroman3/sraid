@@ -1,5 +1,6 @@
 package com.shroman.secureraid.codec;
 
+import java.util.Random;
 
 public class SecureEvenodd extends SecureCodec {
 
@@ -52,9 +53,10 @@ public class SecureEvenodd extends SecureCodec {
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
 		byte[][] shards = new byte[getSize()][shardSize];
+		Random random = getRandom();
 		for (int i = 0; i < getSecrecyShardsNum(); i++) {
 			shards[i] = new byte[shardSize];
-			getRandom().nextBytes(shards[i]);
+			random.nextBytes(shards[i]);
 		}
 		System.arraycopy(data, 0, shards, getSecrecyShardsNum(), getDataShardsNum());
 		for (int i = getDataShardsNum() + getSecrecyShardsNum(); i < shards.length; i++) {

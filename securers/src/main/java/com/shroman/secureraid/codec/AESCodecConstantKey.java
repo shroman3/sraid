@@ -96,7 +96,7 @@ public class AESCodecConstantKey extends CryptoCodecConstantKey {
 
 	@Override
 	public int getBytesInMegaBeforePadding() {
-		return AESCodec.BYTES_IN_MEGABYTE_WITHOUT_PADDING;
+		return BYTES_IN_MEGABYTE - ((getDataShardsNum()*AESJavaCodec.IV_SIZE)/2);
 	}
 	
 	public byte[][] encrypt(byte[][] data, BufferedBlockCipher bufferedBlockCipher)

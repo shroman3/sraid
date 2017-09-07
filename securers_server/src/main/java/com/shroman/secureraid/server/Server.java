@@ -9,9 +9,13 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.net.ssl.SSLServerSocketFactory;
+
 public class Server {
 	private static Map<Integer, ClientConnectionReader> clientsMap = new HashMap<Integer, ClientConnectionReader>();
 	public static void main(String[] args) {
+		System.setProperty("javax.net.ssl.keyStore", "sraid.store");
+		System.setProperty("javax.net.ssl.keyStorePassword", "secureraid");
 		int serverId = Integer.parseInt(args[0]);
 		Path serverPath = Paths.get(args[0]);
 		
@@ -21,7 +25,9 @@ public class Server {
 	    try {
 	    	Operation.initOperations();
 	    	Files.createDirectories(Paths.get(serverId + ""));
-	    	connectionSocket = new ServerSocket(port);
+//	    	connectionSocket = new ServerSocket(port);
+	    	connectionSocket = SSLServerSocketFactory.getDefault().createServerSocket(port);
+
 	        while(true){
 	            Socket socket = connectionSocket.accept();
 	            ClientConnectionReader clientConnection = new ClientConnectionReader(serverPath, socket);

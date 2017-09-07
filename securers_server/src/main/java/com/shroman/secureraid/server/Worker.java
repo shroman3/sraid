@@ -2,7 +2,6 @@ package com.shroman.secureraid.server;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -10,6 +9,7 @@ import org.apache.log4j.Logger;
 import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
 
+import com.shroman.secureraid.common.CommonUtils;
 import com.shroman.secureraid.common.Message;
 import com.shroman.secureraid.common.MessageType;
 import com.shroman.secureraid.common.Response;
@@ -27,7 +27,8 @@ public class Worker extends Thread {
 		this.logger = Logger.getLogger("ClientWork");
 		this.clientPath = clientPath;
 		this.writer = writer;
-		messages = new ArrayBlockingQueue<>(queueSize);
+		messages = CommonUtils.getBlockingQueue(queueSize);
+
 	}
 	
 	@Override

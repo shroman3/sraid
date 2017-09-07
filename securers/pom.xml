@@ -67,7 +67,7 @@
 		<dependency>
 			<groupId>org.bouncycastle</groupId>
 			<artifactId>bcprov-jdk15on</artifactId>
-			<version>1.56</version>
+			<version>1.58</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/it.unimi.dsi/dsiutils -->
 		<dependency>
@@ -81,5 +81,8 @@
 			<artifactId>uncommons-maths</artifactId>
 			<version>1.2.2a</version>
 		</dependency>
+		<!--<dependency> <groupId>com.sun.jna</groupId> <artifactId>jna</artifactId> 
+			<version>3.0.9</version> </dependency> <dependency> <groupId>net.java.dev.jna</groupId> 
+			<artifactId>jna</artifactId> <version>4.4.0</version> </dependency> -->
 	</dependencies>
 </project>

@@ -5,6 +5,10 @@ import java.util.Random;
 import com.shroman.secureraid.utils.Utils;
 
 public abstract class SecureCodec extends Codec {
+	public static interface RandomGetter {
+		Random getRandom();
+	}
+	
 	public static abstract class Builder extends Codec.Builder {
 		private SecureCodec codec;
 
@@ -17,15 +21,15 @@ public abstract class SecureCodec extends Codec {
 			return this;
 		}
 		
-		public Builder setRandom(Random random) {
-			Utils.validateNotNull(random, "Random generator");
-			codec.random = random;
+		public Builder setRandom(RandomGetter randomGetter) {
+			Utils.validateNotNull(randomGetter, "Random generator");
+			codec.randomGetter = randomGetter;
 			return this;
 		}
 		
 		protected void validate() {
 			Utils.validateNotNegative(codec.secrecyShardsNum, "secrecy Shards Num");
-			Utils.validateNotNull(codec.random, "Random generator");
+			Utils.validateNotNull(codec.randomGetter, "Random generator");
 			super.validate();
 		}
 		
@@ -43,7 +47,7 @@ public abstract class SecureCodec extends Codec {
 
 	private int secrecyShardsNum = -1;
 
-	private Random random;
+	private RandomGetter randomGetter;
 
 	public abstract byte[][] encode(int shardSize, byte[][] data);
 	public abstract byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize);
@@ -52,7 +56,7 @@ public abstract class SecureCodec extends Codec {
 	SecureCodec(SecureCodec other) {
 		super(other);
 		secrecyShardsNum = other.secrecyShardsNum;
-		random = other.random;
+		randomGetter = other.randomGetter;
 	}
 	
 	public int getSecrecyShardsNum() {
@@ -60,7 +64,7 @@ public abstract class SecureCodec extends Codec {
 	}
 
 	public Random getRandom() {
-		return random;
+		return randomGetter.getRandom();
 	}
 	
 	@Override

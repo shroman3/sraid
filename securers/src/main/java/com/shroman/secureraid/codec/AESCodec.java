@@ -6,14 +6,11 @@ import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
 import org.bouncycastle.crypto.engines.AESEngine;
-import org.bouncycastle.crypto.paddings.BlockCipherPadding;
 import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
 import org.bouncycastle.crypto.paddings.ZeroBytePadding;
 import org.bouncycastle.crypto.params.KeyParameter;
 
 public class AESCodec extends CryptoCodecWithKey {
-	public static final int BYTES_IN_MEGABYTE_WITHOUT_PADDING = 1048448;// After padding it is 1048576
-	public static final int KEY_SIZE = 32;
 
 	public static class Builder extends CryptoCodecWithKey.Builder {
 		private AESCodec codec;
@@ -38,16 +35,12 @@ public class AESCodec extends CryptoCodecWithKey {
 		}
 	}
 	
-	private BlockCipherPadding blockCipherPadding;
-//	private CipherParameters cipherParameters;
 
 	AESCodec() {
 	}
 
 	AESCodec(AESCodec other) {
 		super(other);
-		blockCipherPadding = new ZeroBytePadding();
-//		cipherParameters = new KeyParameter(getKey());
 	}
 
 	@Override
@@ -55,7 +48,7 @@ public class AESCodec extends CryptoCodecWithKey {
 		// List of BlockCiphers can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
 		CipherParameters cipherParameters = new KeyParameter(key);
 		BlockCipher blockCipher = new AESEngine();
-		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
+		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, new ZeroBytePadding());
 
 		try {
 			byte[][] encrypt = encrypt(data, bufferedBlockCipher, cipherParameters);
@@ -76,9 +69,7 @@ public class AESCodec extends CryptoCodecWithKey {
 		BlockCipher blockCipher = new AESEngine();
 
 		// Paddings can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/paddings/BlockCipherPadding.html
-		BlockCipherPadding blockCipherPadding = new ZeroBytePadding();
-
-		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
+		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, new ZeroBytePadding());
 
 		try {
 			return decrypt(shards, bufferedBlockCipher, cipherParameters);
@@ -94,12 +85,12 @@ public class AESCodec extends CryptoCodecWithKey {
 	
 	@Override
 	public int getBytesInMegaBeforePadding() {
-		return BYTES_IN_MEGABYTE_WITHOUT_PADDING;
+		return BYTES_IN_MEGABYTE - ((getDataShardsNum()*AESJavaCodec.IV_SIZE)/2);
 	}
 
 	@Override
 	public int getKeySize() {
-		return 32;
+		return AESJavaCodec.KEY_SIZE;
 	}
 
 	private byte[][] encrypt(byte[][] data, BufferedBlockCipher bufferedBlockCipher, CipherParameters cipherParameters)

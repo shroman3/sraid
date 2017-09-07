@@ -3,6 +3,7 @@ package com.shroman.secureraid.codec;
 import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
+import org.bouncycastle.crypto.StreamCipher;
 import org.bouncycastle.crypto.engines.RC4Engine;
 import org.bouncycastle.crypto.params.KeyParameter;
 
@@ -73,18 +74,22 @@ public class RC4Codec extends CryptoCodecWithKey {
 	}
 
 	private byte[][] encrypt(byte[][] data, CipherParameters cipherParameters) throws InvalidCipherTextException {
-		RC4Engine encrypt = new RC4Engine();
+		StreamCipher encrypt = getEngine();
         encrypt.init(true, cipherParameters);
 		return process(encrypt, data);
 	}
 
 	private byte[][] decrypt(byte[][] shards, CipherParameters cipherParameters) throws InvalidCipherTextException {
-		RC4Engine decrypt = new RC4Engine();
+		StreamCipher decrypt = getEngine();
         decrypt.init(false, cipherParameters);
 		return process(decrypt, shards);
 	}
 
-	private byte[][] process(RC4Engine engine, byte[][] shards) throws InvalidCipherTextException {
+	protected StreamCipher getEngine() {
+		return new RC4Engine();
+	}
+
+	private byte[][] process(StreamCipher engine, byte[][] shards) throws InvalidCipherTextException {
 		int inputLength = shards[0].length;
 
 		byte[][] output = new byte[getDataShardsNum()][shards[0].length];

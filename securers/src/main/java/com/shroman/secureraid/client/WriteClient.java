@@ -9,19 +9,24 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.log4j.Logger;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
 import org.xml.sax.SAXException;
@@ -39,7 +44,8 @@ import com.shroman.secureraid.utils.XMLParsingException;
 public class WriteClient {
 	private static final String ITEMS_FILENAME = "items.ser";
 	private static final String CONFIG_XML = "config.xml";
-//	private static final int BYTES_IN_MEGABYTE = 1048440;//1048064; //1048512; // Really it is 1048576 we reduce 64 bytes for padding;
+	// private static final int BYTES_IN_MEGABYTE = 1048440;//1048064;
+	// //1048512; // Really it is 1048576 we reduce 64 bytes for padding;
 	private List<Connection> servers = new ArrayList<>();
 	private Map<String, Item> itemsMap = new HashMap<>();
 	private int itemIdGenerator = 0;
@@ -59,6 +65,10 @@ public class WriteClient {
 	public static void main(String[] args) {
 		Scanner inputFileScanner = null;
 		try {
+			Security.addProvider(new BouncyCastleProvider());
+			System.setProperty("javax.net.ssl.trustStore", "sraid.store");
+//			System.setProperty("javax.net.debug", "all");
+
 			XMLGetter xmlGetter = new XMLGetter(CONFIG_XML);
 			WriteClient client = buildClient(args, xmlGetter);
 			inputFileScanner = new Scanner(new FileInputStream("input.txt"));
@@ -89,7 +99,7 @@ public class WriteClient {
 		logger = Logger.getLogger("Encode");
 		config = new Config(xmlGetter);
 		clientId = xmlGetter.getIntField("client", "id");
-		stripeSize = xmlGetter.getIntField("client", "stripe_size") * codec.getBytesInMegaBeforePadding(); //BYTES_IN_MEGABYTE;
+		stripeSize = xmlGetter.getIntField("client", "stripe_size") * codec.getBytesInMegaBeforePadding(); // BYTES_IN_MEGABYTE;
 		shardSize = stripeSize / codec.getDataShardsNum();
 		reader = new ReadClient(codec, config, serversNum, stepSize);
 		this.operation = operation;
@@ -100,21 +110,23 @@ public class WriteClient {
 		initMockConnections(serversNum);
 	}
 
-	public void initWriter() throws UnknownHostException, XMLParsingException, IOException {
+	public void initWriter() throws UnknownHostException, XMLParsingException, IOException, NoSuchAlgorithmException {
 		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
 		initServerConnections(xmlGetter, serversNum);
 	}
 
-	void initReader() throws ClassNotFoundException, IOException, XMLParsingException {
+	void initReader() throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 		loadItemsMap();
 		reader.loadChecksums();
 		reader.start();
 		initServerConnections(xmlGetter, serversNum);
 	}
 
-	void initRandomChunkReader() throws ClassNotFoundException, IOException, XMLParsingException {
+	void initRandomChunkReader() throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
 		initReader();
-		reader.setShouldPresent(codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum() + 1);
+		if (codec.hasRandomRead()) {			
+			reader.setShouldPresent(codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum() + 1);
+		}
 	}
 
 	void finalizeEncoder() throws InterruptedException, IOException {
@@ -129,7 +141,6 @@ public class WriteClient {
 		reader.saveChecksums();
 		saveItemsMap();
 		finalizeServerConnections();
-		reader.logThroughput();
 	}
 
 	void finalizeReader() {
@@ -155,18 +166,10 @@ public class WriteClient {
 	void randomChunkReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		Random random = new Random(12345678);
-		for (int i = 0; i < item.getStripesNumber() / 4; i++) {
-			int stripe = random.nextInt(item.getStripesNumber());
-			int chunk = random.nextInt(codec.getDataShardsNum());
-			reader.readStripe(item, stripe);
-			int secretChunks = codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum();
-			int stripeStep = ((stripe + item.getId()) * stepSize) % serversNum;
-			for (int j = 0; j < secretChunks; j++) {
-				int serverId = (j + stripeStep) % serversNum;
-				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
-			}
-			int serverId = (chunk + stripeStep) % serversNum;
-			servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+		if (codec.hasRandomRead()) {
+			readRandomChunks(item, random);
+		} else {
+			readRandomStripes(item, random);
 		}
 	}
 
@@ -186,7 +189,7 @@ public class WriteClient {
 			}
 		}
 	}
-	
+
 	void serverFailure2ReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
@@ -203,7 +206,7 @@ public class WriteClient {
 			}
 		}
 	}
-	
+
 	void degReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
@@ -214,8 +217,8 @@ public class WriteClient {
 				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
 		}
-	}	
-	
+	}
+
 	void deg2ReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
@@ -228,15 +231,22 @@ public class WriteClient {
 		}
 	}
 
-	void readFile(String fileName) {
+	void fastReadFile(String fileName) {
 		Item item = itemsMap.get(fileName);
 		for (int i = 0; i < item.getStripesNumber(); i++) {
 			int stripeStep = ((i + item.getId()) * stepSize) % serversNum;
 			reader.readStripe(item, i);
-			for (int j = 0; j < codec.getSize() - codec.getParityShardsNum(); j++) {
+			for (int j = 0; j < codec.getSize(); j++) {
 				int serverId = (j + stripeStep) % serversNum;
 				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), i));
 			}
+		}
+	}
+	
+	void readFile(String fileName) {
+		Item item = itemsMap.get(fileName);
+		for (int i = 0; i < item.getStripesNumber(); i++) {
+			readStripe(item, i);
 		}
 	}
 
@@ -298,17 +308,23 @@ public class WriteClient {
 		}
 	}
 
-	private void initServerConnections(XMLGetter xmlGetter, int size)
-			throws XMLParsingException, UnknownHostException, IOException {
+	private void initServerConnections(XMLGetter xmlGetter, int size) throws XMLParsingException, IOException, NoSuchAlgorithmException {
 		Iterator<Getter> iterator = xmlGetter.getIterator("connections", "server");
 		for (int i = 0; i < size; i++) {
-				Getter getter = iterator.next();
-				ServerConnectionWriter serverConnection = new ServerConnectionWriter(i, clientId,
-						getter.getAttribute("host"), getter.getIntAttribute("port"), reader, config);
-				servers.add(serverConnection);
-				serverConnection.start();
+			Getter getter = iterator.next();
+			String host = getter.getAttribute("host");
+			int port = getter.getIntAttribute("port");
+			try {
+				ServerConnectionWriter conn = new ServerConnectionWriter(i, clientId, host, port, reader, config);
+				servers.add(conn);
+				conn.start();
+			} catch (IOException | NoSuchAlgorithmException e) {
+				System.out.println("Connection failed to :" + host);
+				e.printStackTrace();
+				throw e;
+			}
 		}
-			
+
 	}
 
 	private void initMockConnections(int size) {
@@ -353,8 +369,50 @@ public class WriteClient {
 		return bytesRead;
 	}
 
+	private void readRandomChunks(Item item, Random random) {
+		Set<Integer> stripes = new HashSet<>(item.getStripesNumber() / 2); 
+		for (int i = 0; i < item.getStripesNumber() / 2; i++) {
+			int stripe = random.nextInt(item.getStripesNumber());
+			while (stripes.contains(stripe)) {
+				stripe = random.nextInt(item.getStripesNumber());
+			}
+			stripes.add(stripe);
+			int chunk = random.nextInt(codec.getDataShardsNum());
+			reader.readStripe(item, stripe);
+			int secretChunks = codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum();
+			int stripeStep = ((stripe + item.getId()) * stepSize) % serversNum;
+			for (int j = 0; j < secretChunks; j++) {
+				int serverId = (j + stripeStep) % serversNum;
+				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+			}
+			int serverId = (chunk + secretChunks + stripeStep) % serversNum;
+			servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+		}
+	}
+
+	private void readRandomStripes(Item item, Random random) {
+		Set<Integer> stripes = new HashSet<>(item.getStripesNumber() / 2); 
+		for (int i = 0; i < item.getStripesNumber() / 2; i++) {
+			int stripe = random.nextInt(item.getStripesNumber());
+			while (stripes.contains(stripe)) {
+				stripe = random.nextInt(item.getStripesNumber());
+			}
+			stripes.add(stripe);
+			readStripe(item, stripe);
+		}
+	}
+	
+	private void readStripe(Item item, int stripe) {
+		int stripeStep = ((stripe + item.getId()) * stepSize) % serversNum;
+		reader.readStripe(item, stripe);
+		for (int j = 0; j < codec.getSize() - codec.getParityShardsNum(); j++) {
+			int serverId = (j + stripeStep) % serversNum;
+			servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+		}
+	}
+	
 	private void run(Scanner inputFileScanner)
-			throws IOException, InterruptedException, ClassNotFoundException, XMLParsingException {
+			throws IOException, InterruptedException, ClassNotFoundException, XMLParsingException, NoSuchAlgorithmException {
 		reader.setStartTimestamp();
 		operation.run(inputFileScanner, this);
 	}
@@ -377,7 +435,7 @@ public class WriteClient {
 
 	private static WriteClient buildClient(String[] args, XMLGetter xmlGetter)
 			throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {
-		Utils.validateArraySize(args, 9, "Arguments");
+		Utils.validateArraySize(args, 8, "Arguments");
 		try {
 			String operationType = args[0];
 			String codecName = args[1];
@@ -385,10 +443,9 @@ public class WriteClient {
 			int r = Integer.parseInt(args[3]);
 			int z = Integer.parseInt(args[4]);
 			String randomName = args[5];
-			String randomKey = args[6];
-			int serversNum = Integer.parseInt(args[7]);
-			int stepSize = Integer.parseInt(args[8]);
-			Codec codec = CodecType.getCodecFromArgs(codecName, k, r, z, randomName, randomKey);
+			int serversNum = Integer.parseInt(args[6]);
+			int stepSize = Integer.parseInt(args[7]);
+			Codec codec = CodecType.getCodecFromArgs(codecName, k, r, z, randomName);
 			if (serversNum < codec.getSize()) {
 				throw new IllegalArgumentException("Number of servers should be higher that code length. Given "
 						+ serversNum + " while n=" + codec.getSize());

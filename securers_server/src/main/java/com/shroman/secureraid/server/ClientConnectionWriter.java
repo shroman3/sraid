@@ -2,7 +2,6 @@ package com.shroman.secureraid.server;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -10,6 +9,7 @@ import org.apache.log4j.Logger;
 import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
 
+import com.shroman.secureraid.common.CommonUtils;
 import com.shroman.secureraid.common.Response;
 import com.shroman.secureraid.common.ResponseType;
 
@@ -23,7 +23,7 @@ public class ClientConnectionWriter extends Thread {
 		this.serverId = serverId;
 		this.logger = Logger.getLogger("ClientWriteStream");
 		this.output = output;
-		responses = new ArrayBlockingQueue<>(queueSize);
+		responses = CommonUtils.getBlockingQueue(queueSize);
 	}
 	
 	@Override
@@ -40,10 +40,12 @@ public class ClientConnectionWriter extends Thread {
 					output.reset();
 				} catch (IOException e) {
 					e.printStackTrace();
+					logger.error("1 Something went wrong: " + e.getMessage(), e);
 				}
 				stopWatch.stop();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
+				logger.error("2 Something went wrong: " + e.getMessage(), e);
 			}
 		}
 	}

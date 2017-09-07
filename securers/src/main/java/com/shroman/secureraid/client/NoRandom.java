@@ -10,8 +10,8 @@ public class NoRandom extends Random {
 
 	private Map<Integer, byte[]> randomCache = new HashMap<>();
 
-	public NoRandom(long seed) {
-		super(seed);
+	public NoRandom() {
+		super();
 	}
 
 	@Override

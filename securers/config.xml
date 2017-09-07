@@ -5,19 +5,43 @@
 		<id>12</id>
 		<stripe_size>4</stripe_size><!-- in Megabytes -->
 		<executer_threads_num>2</executer_threads_num>
-        <executer_queue_size>255</executer_queue_size>
-        <server_connection_queue_size>255</server_connection_queue_size>
+		<executer_queue_size>0</executer_queue_size>
+		<server_connection_queue_size>0</server_connection_queue_size>
 	</client>
 	<connections>
-<!--  		<server host="52.33.142.212" port="12300" /> -->
-		<server host="localhost" port="23411" />
-		<server host="localhost" port="12302" />
-		<server host="localhost" port="12303" />
-		<server host="localhost" port="12304" />
-		<server host="localhost" port="12305" />
-		<server host="localhost" port="12306" />
-		<server host="localhost" port="12307" />
-		<server host="localhost" port="12308" />
-		<server host="localhost" port="12309" />
+		<server host="34.231.72.222" port="12300" />
+		<server host="18.220.188.143" port="12300" />
+		<server host="52.58.196.52" port="12300" />
+		<server host="54.194.65.31" port="12300" />
+		<server host="35.176.199.135" port="12300" />
+		<server host="13.126.51.100" port="12300" />
+		<server host="34.231.221.128" port="12300" />
+		<server host="18.220.103.69" port="12300" />
+		<server host="13.56.88.139" port="12300" />
+		<server host="35.157.73.15" port="12300" />
+		<server host="34.253.21.118" port="12300" />
+		<server host="35.176.23.107" port="12300" />
+		<server host="13.232.0.92" port="12300" />
+
+		<!-- <server host="132.68.206.190" port="12300" /> <server host="localhost" 
+			port="23411" /> <server host="localhost" port="12302" /> <server host="localhost" 
+			port="12303" /> <server host="localhost" port="12304" /> <server host="localhost" 
+			port="12305" /> <server host="localhost" port="12306" /> <server host="localhost" 
+			port="12307" /> <server host="localhost" port="12308" /> <server host="localhost" 
+			port="12309" /> <server host="localhost" port="12310" /> <server host="localhost" 
+			port="12313" /> <server host="localhost" port="12314" /> <server host="localhost" 
+			port="12315" /> <server host="localhost" port="12316" /> <server host="localhost" 
+			port="12317" /> <server host="localhost" port="12318" /> <server host="localhost" 
+			port="12319" /> <server host="localhost" port="12320" /> <server host="localhost" 
+			port="12321" /> <server host="localhost" port="12322" /> <server host="localhost" 
+			port="12323" /> <server host="localhost" port="12324" /> <server host="localhost" 
+			port="12325" /> <server host="localhost" port="12326" /> <server host="localhost" 
+			port="12327" /> <server host="localhost" port="12328" /> <server host="localhost" 
+			port="12329" /> <server host="localhost" port="12330" /> <server host="localhost" 
+			port="12331" /> <server host="localhost" port="12332" /> <server host="localhost" 
+			port="12333" /> <server host="localhost" port="12334" /> <server host="localhost" 
+			port="12335" /> <server host="localhost" port="12336" /> <server host="localhost" 
+			port="12337" /> <server host="localhost" port="12338" /> <server host="localhost" 
+			port="12339" /> <server host="localhost" port="12340" /> -->
 	</connections>
 </root>

@@ -8,68 +8,67 @@ import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
-import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.engines.AESEngine;
-import org.bouncycastle.crypto.paddings.BlockCipherPadding;
+import org.bouncycastle.crypto.paddings.PKCS7Padding;
 import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
-import org.bouncycastle.crypto.paddings.ZeroBytePadding;
 import org.bouncycastle.crypto.params.KeyParameter;
 
 import com.shroman.secureraid.utils.Utils;
 
-public class AONTAES extends CryptoCodecConstantKey {
-	public static final int BYTES_IN_MEGABYTE_WITHOUT_PADDING = 1048440;// After padding it is 1048576
+public class AONTAESBC extends CryptoCodecConstantKey {
+//	public static final int BYTES_IN_MEGABYTE_WITHOUT_PADDING = 1048440;// After padding it is 1048576
 
 	public static class Builder extends CryptoCodecConstantKey.Builder {
-		private AONTAES codec;
+		private AONTAESBC codec;
 
 		public Builder() {
-			setCodec(new AONTAES());
+			setCodec(new AONTAESBC());
 		}
 
-		Builder(AONTAES secureRS) {
-			setCodec(new AONTAES(secureRS));
+		Builder(AONTAESBC secureRS) {
+			setCodec(new AONTAESBC(secureRS));
 		}
 
 		@Override
-		public AONTAES build() {
+		public AONTAESBC build() {
 			validate();
-			return new AONTAES(codec);
+			return new AONTAESBC(codec);
 		}
 
-		protected void setCodec(AONTAES codec) {
+		protected void setCodec(AONTAESBC codec) {
 			super.setCodec(codec);
 			this.codec = codec;
 		}
 
 		@Override
 		protected Digest getDigest() {
-			return getSHA256Digest();
+			return AONTAESJava.getSHA256Digest();
 		}
 	}
 	
 	private int keySize;
-	private SecureRandom trueRandom;
-	private BlockCipherPadding blockCipherPadding;
-//	private CipherParameters cipherParameters;
+//	private BlockCipherPadding blockCipherPadding;
 	
-	AONTAES() {
+	AONTAESBC() {
 	}
 
-	AONTAES(AONTAES other) {
+	AONTAESBC(AONTAESBC other) {
 		super(other);
-		keySize = (int) Math.ceil((double)AESCodec.KEY_SIZE/getDataShardsNum());
-		trueRandom = Utils.createTrueRandom();
-		blockCipherPadding = new ZeroBytePadding();
+		keySize = (int) Math.ceil((double)AESJavaCodec.KEY_SIZE/getDataShardsNum());
+//		blockCipherPadding = new PKCS7Padding();
+	}
+	
+	public int getKeySize() {
+		return keySize;
 	}
 
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
-		byte[] key = new byte[AESCodec.KEY_SIZE];
-		trueRandom.nextBytes(key);
-		// List of BlockCiphers can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
+		byte[] key = new byte[AESJavaCodec.KEY_SIZE];
+		SecureRandom random = Utils.createTrueRandom();
+		random.nextBytes(key);
 		BlockCipher blockCipher = new AESEngine();
-		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
+		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, new PKCS7Padding());
 		CipherParameters cipherParameters = new KeyParameter(key);
 
 		try {
@@ -79,8 +78,8 @@ public class AONTAES extends CryptoCodecConstantKey {
 			
 			process(data, bufferedBlockCipher, shardSize, encrypt);
 			
-			hashEncryptedAndXORwithKey(key, maximumOutputLength, encrypt, getSHA256Digest(), getDataShardsNum());
-			addKeyToShards(key, maximumOutputLength, encrypt, keySize);
+			AONTAESJava.hashEncryptedAndXORwithKey(key, maximumOutputLength, encrypt, AONTAESJava.getSHA256Digest(), getDataShardsNum());
+			AONTAESJava.addKeyToShards(key, maximumOutputLength, encrypt, keySize);
 			return encodeRS(encrypt);
 		} catch (InvalidCipherTextException e) {
 			e.printStackTrace();
@@ -91,18 +90,18 @@ public class AONTAES extends CryptoCodecConstantKey {
 	@Override
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
 		decodeRS(shardPresent, shards, shardSize);
-		byte[] key = new byte[AESCodec.KEY_SIZE];
+		byte[] key = new byte[AESJavaCodec.KEY_SIZE];
 
-		getKeyFromShards(shards, shardSize, key, keySize);
-		hashEncryptedAndXORwithKey(key, shardSize - keySize, shards, getSHA256Digest(), getDataShardsNum());
+		AONTAESJava.getKeyFromShards(shards, shardSize, key, keySize);
+		AONTAESJava.hashEncryptedAndXORwithKey(key, shardSize - keySize, shards, AONTAESJava.getSHA256Digest(), getDataShardsNum());
 		
 		// List of BlockCiphers can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
 		BlockCipher blockCipher = new AESEngine();
 
 		// Paddings can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/paddings/BlockCipherPadding.html
-		BlockCipherPadding blockCipherPadding = new ZeroBytePadding();
+//		BlockCipherPadding blockCipherPadding = new ZeroBytePadding();
 
-		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
+		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, new PKCS7Padding());
 		CipherParameters cipherParameters = new KeyParameter(key);
 
 		try {
@@ -124,7 +123,7 @@ public class AONTAES extends CryptoCodecConstantKey {
 	
 	@Override
 	public int getBytesInMegaBeforePadding() {
-		return BYTES_IN_MEGABYTE_WITHOUT_PADDING;
+		return BYTES_IN_MEGABYTE - ((getDataShardsNum()*AESJavaCodec.IV_SIZE)/2) - ((keySize*getDataShardsNum())/4);
 	}
 
 	void process(byte[][] shards, BufferedBlockCipher bufferedBlockCipher, int inputLength, byte[][] output) throws InvalidCipherTextException {		
@@ -135,32 +134,28 @@ public class AONTAES extends CryptoCodecConstantKey {
 		}
 	}
 	
-	static void addKeyToShards(byte[] key, int maximumOutputLength, byte[][] encrypt, int keySize) {
-		int j = 0;
-		for (int i = 0; i < key.length; i+=keySize) {
-			System.arraycopy(key, i, encrypt[j++], maximumOutputLength, keySize);
-		}
-	}
-
-	static void getKeyFromShards(byte[][] shards, int shardSize, byte[] key, int keySize) {
-		int j = 0;
-		for (int i = 0; i < key.length; i+=keySize) {
-			System.arraycopy(shards[j++], shardSize - keySize, key, i, keySize);
-		}
-	}
-	
-	static void hashEncryptedAndXORwithKey(byte[] key, int maximumOutputLength, byte[][] encrypt, Digest digest, int dataShards) {
-		byte[] hashed = new byte[digest.getDigestSize()];
-		for (int j = 0; j < dataShards; j++) {
-			digest.update(encrypt[j], 0, maximumOutputLength);		
-			digest.doFinal(hashed, 0);
-			for (int i = 0; i < hashed.length; i++) {
-				key[i] = (byte) (key[i] ^ hashed[i]);
-			}
-		}
-	}
-
-	private static SHA256Digest getSHA256Digest() {
-		return new SHA256Digest();
-	}
+//	static void addKeyToShards(byte[] key, int maximumOutputLength, byte[][] encrypt, int keySize) {
+//		int j = 0;
+//		for (int i = 0; i < key.length; i+=keySize) {
+//			System.arraycopy(key, i, encrypt[j++], maximumOutputLength, keySize);
+//		}
+//	}
+//
+//	static void getKeyFromShards(byte[][] shards, int shardSize, byte[] key, int keySize) {
+//		int j = 0;
+//		for (int i = 0; i < key.length; i+=keySize) {
+//			System.arraycopy(shards[j++], shardSize - keySize, key, i, keySize);
+//		}
+//	}
+//	
+//	static void hashEncryptedAndXORwithKey(byte[] key, int maximumOutputLength, byte[][] encrypt, Digest digest, int dataShards) {
+//		byte[] hashed = new byte[digest.getDigestSize()];
+//		for (int j = 0; j < dataShards; j++) {
+//			digest.update(encrypt[j], 0, maximumOutputLength);		
+//			digest.doFinal(hashed, 0);
+//			for (int i = 0; i < hashed.length; i++) {
+//				key[i] = (byte) (key[i] ^ hashed[i]);
+//			}
+//		}
+//	}
 }

@@ -61,6 +61,7 @@ public class ClientConnectionReader extends Thread {
 					break;
 				} catch (IOException | ClassNotFoundException e) {
 					e.printStackTrace();
+					logger.error("1 Something went wrong: " + e.getMessage(), e);
 					break;
 				}
 			}
@@ -68,6 +69,7 @@ public class ClientConnectionReader extends Thread {
 			worker.join();
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
+			logger.error("2 Something went wrong: " + e.getMessage(), e);
 		} finally {
 			try {
 				socket.close();

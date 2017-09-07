@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,7 +61,7 @@ public class Client implements PushResponseInterface {
 			} catch (Exception e) {
 				System.out.println("Something went wrong: " + e.getMessage());
 			}
-		} catch (ParserConfigurationException | SAXException | IOException | XMLParsingException e) {
+		} catch (ParserConfigurationException | SAXException | IOException | XMLParsingException | NoSuchAlgorithmException e) {
 			throw new RuntimeException("Unable to load config XML file(" + CONFIG_XML + ")\n" + e.getMessage());
 		} finally {
 			if (inputFileScanner != null) {
@@ -69,7 +70,7 @@ public class Client implements PushResponseInterface {
 		}
 	}
 	
-	private Client(String[] args) throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException {
+	private Client(String[] args) throws ParserConfigurationException, SAXException, IOException, XMLParsingException, UnknownHostException, NoSuchAlgorithmException {
 		XMLGetter xmlGetter = new XMLGetter(CONFIG_XML);
 		clientId = xmlGetter.getIntField("client", "id");
 		stripeSize = xmlGetter.getIntField("client", "stripe_size") * BYTES_IN_MEGABYTE;
@@ -176,7 +177,7 @@ public class Client implements PushResponseInterface {
 	}
 
 	private void initServerConnections(XMLGetter xmlGetter, int size)
-			throws XMLParsingException, UnknownHostException, IOException {
+			throws XMLParsingException, UnknownHostException, IOException, NoSuchAlgorithmException {
 		Iterator<Getter> iterator = xmlGetter.getIterator("connections", "server");
 		for (int i = 0; i < size; i++) {
 			Getter getter = iterator.next();

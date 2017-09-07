@@ -23,7 +23,7 @@ import java.util.Random;
 public class ReedSolomonBenchmark {
 
     private static final int BUFFER_SIZE = 200 * 1000;
-    private static final int PROCESSOR_CACHE_SIZE = 10 * 1024 * 1024;
+    private static final int PROCESSOR_CACHE_SIZE = 128 * 1024 * 1024;
     private static final int TWICE_PROCESSOR_CACHE_SIZE = 2 * PROCESSOR_CACHE_SIZE;
     
     private final int NUMBER_OF_BUFFER_SETS;// = TWICE_PROCESSOR_CACHE_SIZE / DATA_COUNT / BUFFER_SIZE + 1;
