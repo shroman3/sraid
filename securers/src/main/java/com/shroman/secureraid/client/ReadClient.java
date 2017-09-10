@@ -168,7 +168,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	}
 	
 	void logThroughput() {
-		throughputLogger.info(Utils.buildLogMessage(startTimestamp, -1, ""));
+		throughputLogger.info(Utils.buildLogMessage(startTimestamp, -1, "0"));
 	}
 
 	private boolean isStripeReady(Integer chunkId, Integer chunksNum) {
@@ -221,7 +221,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		}
 		stopWatch.stop();
 		Long timestamp = timestampMap.remove(chunkId);
-		stripeLogger.info(Utils.buildLogMessage(timestamp, chunkId, ""));
+		stripeLogger.info(Utils.buildLogMessage(timestamp, chunkId, "0"));
 	}
 
 	private byte[] getKey(Integer chunkId) {
