@@ -8,7 +8,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CountDownLatch;
 
 import javax.net.ssl.SSLSocketFactory;
 
@@ -29,8 +29,10 @@ class ServerConnectionWriter extends Thread implements Connection {
 	private PushResponseInterface pushResponse;
 	private Logger logger;
 	private boolean die = false;
+	private CountDownLatch barrier;
 
-	ServerConnectionWriter(int serverId, int clientId, String host, int port, PushResponseInterface pushResponse, Config config) throws UnknownHostException, IOException, NoSuchAlgorithmException {
+	ServerConnectionWriter(CountDownLatch barrier, int serverId, int clientId, String host, int port, PushResponseInterface pushResponse, Config config) throws UnknownHostException, IOException, NoSuchAlgorithmException {
+		this.barrier = barrier;
 		this.serverId = serverId;
 		this.host = host;
 		this.port = port;
@@ -52,8 +54,9 @@ class ServerConnectionWriter extends Thread implements Connection {
 		try {
 			output = new ObjectOutputStream(socket.getOutputStream());
 			input = new ObjectInputStream(socket.getInputStream());
-			ServerConnectionReader reader = new ServerConnectionReader(serverId, pushResponse, input);
+			ServerConnectionReader reader = new ServerConnectionReader(barrier, serverId, pushResponse, input);
 			reader.start();
+			barrier.countDown();
 			while (!die) {
 				try {
 					write(output);
@@ -100,7 +103,7 @@ class ServerConnectionWriter extends Thread implements Connection {
 	private void write(ObjectOutputStream output) throws IOException, InterruptedException, ClassNotFoundException {
 		while (true) {
 			try {
-				Message message = messages.poll(Integer.MAX_VALUE,TimeUnit.SECONDS);
+				Message message = messages.take();
 				if (message == null || message.getType() == MessageType.KILL) {
 					die = true;
 					output.writeUnshared(message);

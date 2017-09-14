@@ -16,7 +16,7 @@ import com.shroman.secureraid.utils.Utils;
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
 
 public enum RandomType implements SecureCodec.RandomGetter {
-	AES("AES") {
+	AES("AESJ") {
 		private final MD5Digest MD5_DIGEST = new MD5Digest();
 		@Override
 		public Random getRandom() {
@@ -32,36 +32,45 @@ public enum RandomType implements SecureCodec.RandomGetter {
 			}
 		}
 	},
-	BC_DEFAULT("BCD") {
+	MY_AES("AES") {
 		@Override
 		public Random getRandom() {
-			try {
-				SecureRandom secureRandom = SecureRandom.getInstance("DEFAULT");
-				return secureRandom;
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-				System.out.println("Problem creating NativePRNGBlocking");
-				return new SecureRandom();
-			}
+			byte[] key = new byte[32];
+			byte[] iv = new byte[16];
+			trueRandom.nextBytes(key);
+			AESRandom aesRandom = new AESRandom(key, iv);
+			return aesRandom;
 		}
-		
 	},
-	BC_NONCEANDIV("BCN") {
-		@Override
-		public Random getRandom() {
-			try {
-				SecureRandom secureRandom = SecureRandom.getInstance("NONCEANDIV");
-				return secureRandom;
-			} catch (NoSuchAlgorithmException e) {
-				e.printStackTrace();
-				System.out.println("Problem creating NativePRNGBlocking");
-				return new SecureRandom();
-			}
-		}
-		
-	},
+//	BC_DEFAULT("BCD") {
+//		@Override
+//		public Random getRandom() {
+//			try {
+//				SecureRandom secureRandom = SecureRandom.getInstance("DEFAULT");
+//				return secureRandom;
+//			} catch (NoSuchAlgorithmException e) {
+//				e.printStackTrace();
+//				System.out.println("Problem creating NativePRNGBlocking");
+//				return new SecureRandom();
+//			}
+//		}
+//		
+//	},
+//	BC_NONCEANDIV("BCN") {
+//		@Override
+//		public Random getRandom() {
+//			try {
+//				SecureRandom secureRandom = SecureRandom.getInstance("NONCEANDIV");
+//				return secureRandom;
+//			} catch (NoSuchAlgorithmException e) {
+//				e.printStackTrace();
+//				System.out.println("Problem creating NativePRNGBlocking");
+//				return new SecureRandom();
+//			}
+//		}
+//		
+//	},
 	DEV_URANDOM("DEV_URANDOM", "URANDOM") {
-
 		@Override
 		public Random getRandom() {
 			try {
@@ -72,7 +81,8 @@ public enum RandomType implements SecureCodec.RandomGetter {
 				e.printStackTrace();
 				System.out.println("Problem creating NativePRNGNonBlocking");
 				return new SecureRandom();
-			}		}
+			}		
+		}
 
 	},
 	SHA1("SHA", "SHA1") {

@@ -2,7 +2,7 @@ package com.shroman.secureraid.codec;
 
 import java.util.Random;
 
-import com.backblaze.erasure.OutputInputByteTableCodingLoop;
+import com.backblaze.erasure.InputOutputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 
 public class SecureBackblazeRS extends SecureCodec {
@@ -44,7 +44,7 @@ public class SecureBackblazeRS extends SecureCodec {
 		if (getSecrecyShardsNum() > 0) {
 			decrypt = SecureBackblazeRS::decrypt;
 			secrecyRS = new ReedSolomon(getSecrecyShardsNum(), getParityShardsNum() + getDataShardsNum(),
-					new OutputInputByteTableCodingLoop());
+					new InputOutputByteTableCodingLoop());
 		} else {
 			decrypt = SecureBackblazeRS::emptyDecrypt;
 		}
@@ -52,7 +52,7 @@ public class SecureBackblazeRS extends SecureCodec {
 		if (getParityShardsNum() > 0) {
 			decodeMissing = SecureBackblazeRS::decodeMissing;
 			parityRS = new ReedSolomon(getSecrecyShardsNum() + getDataShardsNum(), getParityShardsNum(),
-					new OutputInputByteTableCodingLoop());
+					new InputOutputByteTableCodingLoop());
 		} else {
 			decodeMissing = SecureBackblazeRS::emptyDecodeMissing;
 		}

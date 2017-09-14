@@ -1,6 +1,6 @@
 package com.shroman.secureraid.codec;
 
-import com.backblaze.erasure.OutputInputByteTableCodingLoop;
+import com.backblaze.erasure.InputOutputByteTableCodingLoop;
 import com.backblaze.erasure.ReedSolomon;
 
 public abstract class CryptoCodec extends Codec {
@@ -16,7 +16,7 @@ public abstract class CryptoCodec extends Codec {
 	CryptoCodec(CryptoCodec other) {
 		super(other);
 		if (getParityShardsNum() > 0) {			
-			parityRS = new ReedSolomon(getDataShardsNum(), getParityShardsNum(), new OutputInputByteTableCodingLoop());
+			parityRS = new ReedSolomon(getDataShardsNum(), getParityShardsNum(), new InputOutputByteTableCodingLoop());
 		}
 	}
 	

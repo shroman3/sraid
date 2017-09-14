@@ -8,8 +8,10 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.zip.CRC32;
 
 import org.apache.log4j.Logger;
@@ -17,9 +19,12 @@ import org.perf4j.StopWatch;
 import org.perf4j.log4j.Log4JStopWatch;
 
 import com.shroman.secureraid.codec.Codec;
+import com.shroman.secureraid.common.CommonUtils;
 import com.shroman.secureraid.common.Response;
 import com.shroman.secureraid.common.ResponseType;
+import com.shroman.secureraid.common.Tuple;
 import com.shroman.secureraid.utils.Utils;
+
 
 public class ReadClient extends Thread implements PushResponseInterface {
 	private static final String CHECKSUMS_FILENAME = "checksums.ser";
@@ -29,7 +34,8 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	private Map<Integer, byte[][]> readMap = new ConcurrentHashMap<>();
 	private Map<Integer, Integer> chunksMap = new ConcurrentHashMap<>();
 
-	// private Map<Integer, Integer> writesMap = new ConcurrentHashMap<>();
+	private BlockingQueue<Tuple<Integer, Response>> responseQ = CommonUtils.getBlockingQueue(0);
+
 	private Map<Integer, Long> timestampMap = new ConcurrentHashMap<>();
 	private Map<Integer, byte[]> keysMap = new ConcurrentHashMap<>();
 
@@ -70,7 +76,7 @@ public class ReadClient extends Thread implements PushResponseInterface {
 				if (chunksNum == codec.getSize()) {
 					chunksMap.remove(stripeId);
 					Long timestamp = timestampMap.remove(stripeId);
-					stripeLogger.info(Utils.buildLogMessage(timestamp, stripeId, ""));
+					stripeLogger.info(Utils.buildLogMessage(timestamp, stripeId, "0"));
 					if (timestampMap.isEmpty()) {
 						logThroughput();
 					}
@@ -79,38 +85,44 @@ public class ReadClient extends Thread implements PushResponseInterface {
 				}
 			}
 		} else if (response.isSuccess() && response.getData() != null) {
-			synchronized (mutex) {
-				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
-				byte[][] responses = readMap.get(stripeId);
-				if (responses != null) {					
-					int chunkId = (((serverId - (response.getChunkId() + response.getObjectId()) * stepSize) % serversNum)
-							+ serversNum) % serversNum;
-					responses[chunkId] = response.getData();
-					Integer chunksNum = chunksMap.get(stripeId);
-					if (chunksNum == null) {
-						chunksMap.put(stripeId, 1);
-					} else {
-						chunksMap.put(stripeId, chunksNum + 1);
-					}
-					mutex.notifyAll();
-				}
-			}
+			int chunkId = (((serverId - (response.getChunkId() + response.getObjectId()) * stepSize) % serversNum)
+					+ serversNum) % serversNum;
+			responseQ.add(new Tuple<Integer, Response>(chunkId, response));
 		}
 	}
 
 	@Override
 	public void run() {
 		executer = Utils.buildExecutor(config.getExecuterThreadsNum(), config.getExecuterQueueSize());
-		synchronized (mutex) {
-			while (!(die && readMap.isEmpty())) {
-				try {
-					mutex.wait();
-				} catch (InterruptedException e) {
-					e.printStackTrace();
+		while (!readMap.isEmpty() || !die) {
+			try {
+				Tuple<Integer, Response> tuple = responseQ.take();
+				int chunkId = tuple.x;
+				Response response = tuple.y; 
+				int stripeId = calcStripeId(response.getObjectId(), response.getChunkId());
+				Integer chunksNum = chunksMap.get(stripeId);
+				if (chunksNum != null) {
+					chunksNum +=1;
+					if (chunksNum < shouldPresent) {
+						chunksMap.put(stripeId, chunksNum);
+						byte[][] chunks = readMap.get(stripeId);
+						chunks[chunkId] = response.getData();
+					} else {
+						byte[][] chunks = readMap.remove(stripeId);
+						chunks[chunkId] = response.getData();
+						chunksMap.remove(stripeId);
+						finishStripe(stripeId, chunks);
+					}
 				}
-				chunksMap.entrySet().removeIf(e -> isStripeReady(e.getKey(), e.getValue()));
+			} catch (InterruptedException e) {
+				e.printStackTrace();
 			}
+		}
+		try {
 			executer.shutdown();
+			executer.awaitTermination(10, TimeUnit.MINUTES);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 		logThroughput();
 	}
@@ -127,14 +139,15 @@ public class ReadClient extends Thread implements PushResponseInterface {
 	void readStripe(Item item, int stripeNum) {
 		int stripeId = calcStripeId(item.getId(), stripeNum);
 		readMap.put(stripeId, new byte[codec.getSize()][]);
+		chunksMap.put(stripeId,0);
 		timestampMap.put(stripeId, System.currentTimeMillis());
 	}
 
 	void die() {
-		synchronized (mutex) {
-			die = true;
-			mutex.notify();
-		}
+//		synchronized (mutex) {
+		die = true;
+//			mutex.notify();
+//		}
 	}
 
 	int addChecksumAndKey(int stripeNum, final int itemId, byte[][] dataShards, byte[] key) {
@@ -171,20 +184,13 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		throughputLogger.info(Utils.buildLogMessage(startTimestamp, -1, "0"));
 	}
 
-	private boolean isStripeReady(Integer chunkId, Integer chunksNum) {
-		if (chunksNum < shouldPresent) {
-			return false;
-		}
-
-		byte[][] chunks = readMap.remove(chunkId);
-
+	private void finishStripe(int stripeId, byte[][] chunks) {
 		executer.execute(new Runnable() {
 			@Override
 			public void run() {
-				decode(chunkId, chunks);
+				decode(stripeId, chunks);
 			}
 		});
-		return true;
 	}
 
 	private int calcStripeId(int itemId, int stripeId) {
@@ -206,22 +212,22 @@ public class ReadClient extends Thread implements PushResponseInterface {
 		return checksums;
 	}
 
-	private void decode(Integer chunkId, byte[][] chunks) {
+	private void decode(Integer stripeId, byte[][] chunks) {
 		int chunkSize = getChunkSize(chunks);
-		StopWatch stopWatch = new Log4JStopWatch(chunkId.toString(), Integer.toString(chunkSize), decodeLogger);
-		byte[][] decode = codec.decode(chunks, chunkSize, getKey(chunkId));
+		StopWatch stopWatch = new Log4JStopWatch(stripeId.toString(), Integer.toString(chunkSize), decodeLogger);
+		byte[][] decode = codec.decode(chunks, chunkSize, getKey(stripeId));
 		
-		long[] checksum = calcChecksum(decode, sizesMap.get(chunkId));
-		long[] origChecksum = checksumMap.get(chunkId);
+		long[] checksum = calcChecksum(decode, sizesMap.get(stripeId));
+		long[] origChecksum = checksumMap.get(stripeId);
 		for (int i = 0; i < checksum.length; i++) {
 			if (checksum[i] != -1 && checksum[i] != origChecksum[i]) {
-				System.err.println("###\nChecksum isn't compatible stripeId: " + chunkId + "\n###");
+				System.err.println("###\nChecksum isn't compatible stripeId: " + stripeId + "\n###");
 				break;
 			}
 		}
 		stopWatch.stop();
-		Long timestamp = timestampMap.remove(chunkId);
-		stripeLogger.info(Utils.buildLogMessage(timestamp, chunkId, "0"));
+		Long timestamp = timestampMap.remove(stripeId);
+		stripeLogger.info(Utils.buildLogMessage(timestamp, stripeId, "0"));
 	}
 
 	private byte[] getKey(Integer chunkId) {

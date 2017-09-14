@@ -1,11 +1,12 @@
 package com.shroman.secureraid.codec;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 
 import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.StreamCipher;
-import org.bouncycastle.crypto.digests.MD5Digest;
 import org.bouncycastle.crypto.engines.ChaChaEngine;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithIV;
@@ -36,8 +37,13 @@ public class AONTChaCha extends CryptoCodecConstantKey {
 		}
 
 		@Override
-		protected Digest getDigest() {
-			return getMD5Digest();
+		protected MessageDigest getDigest() {
+			try {
+				return MessageDigest.getInstance("MD5", "SUN");
+			} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+				throw new IllegalArgumentException("Unable to create MD5");
+			}
+
 		}
 	}
 	
@@ -114,8 +120,12 @@ public class AONTChaCha extends CryptoCodecConstantKey {
 		return new ChaChaEngine();
 	}
 	
-	protected static Digest getMD5Digest() {
-		return new MD5Digest();
+	protected static MessageDigest getMD5Digest() {
+		try {
+			return MessageDigest.getInstance("MD5", "SUN");
+		} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+			throw new IllegalArgumentException("Unable to create MD5");
+		}
 	}
 }
 

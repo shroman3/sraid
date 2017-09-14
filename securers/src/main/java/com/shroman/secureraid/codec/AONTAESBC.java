@@ -1,11 +1,13 @@
 package com.shroman.secureraid.codec;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 
 import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
 import org.bouncycastle.crypto.engines.AESEngine;
@@ -41,8 +43,12 @@ public class AONTAESBC extends CryptoCodecConstantKey {
 		}
 
 		@Override
-		protected Digest getDigest() {
-			return AONTAESJava.getSHA256Digest();
+		protected MessageDigest getDigest() {
+			try {
+				return MessageDigest.getInstance("SHA-256", "SUN");
+			} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+				throw new IllegalArgumentException("Unable to create SHA-256");
+			}
 		}
 	}
 	

@@ -1,6 +1,6 @@
 package com.shroman.secureraid.codec;
 
-import org.bouncycastle.crypto.Digest;
+import java.security.MessageDigest;
 
 import com.shroman.secureraid.utils.Utils;
 
@@ -10,16 +10,16 @@ public abstract class CryptoCodecConstantKey extends CryptoCodec {
 		
 		public Builder setKey(String password) {
 			Utils.validateNotNull(password, "password");
-			Digest digest = getDigest();
+			MessageDigest digest = getDigest();
 			digest.update(password.getBytes(), 0, password.getBytes().length);
-			codec.key = new byte[digest.getDigestSize()];
-			digest.doFinal(codec.key, 0);
+			codec.key = new byte[digest.getDigestLength()];
+			digest.digest(codec.key);
 			return this;
 		}
 
 		public abstract CryptoCodecConstantKey build();
 		
-		protected abstract Digest getDigest();
+		protected abstract MessageDigest getDigest();
 		
 		protected void validate() {
 			Utils.validateNotNull(codec.key, "key");

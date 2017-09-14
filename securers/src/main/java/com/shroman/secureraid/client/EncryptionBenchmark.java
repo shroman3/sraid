@@ -36,8 +36,8 @@ public class EncryptionBenchmark {
 		void decrypt(byte[] in, byte[] out);
 	}
 
-	private static final int BUFFER_SIZE = 1000 * 200;
-	private static final int PROCESSOR_CACHE_SIZE = 128 * 1024 * 1024;
+	private static final int BUFFER_SIZE = 1024 * 512;
+	private static final int PROCESSOR_CACHE_SIZE = 20 * 1024 * 1024;
 	private static final int TWICE_PROCESSOR_CACHE_SIZE = 2 * PROCESSOR_CACHE_SIZE;
 	private static final long MEASUREMENT_DURATION = 1000;
 	private final int NUMBER_OF_BUFFER_SETS = TWICE_PROCESSOR_CACHE_SIZE / BUFFER_SIZE + 1;
@@ -117,10 +117,10 @@ public class EncryptionBenchmark {
 		System.out.println("\n");
 		System.out.println(csv.toString());
 
-		System.out.println("\nSummary:\n");
-		for (String line : summaryLines) {
-			System.out.println(line);
-		}
+//		System.out.println("\nSummary:\n");
+//		for (String line : summaryLines) {
+//			System.out.println(line);
+//		}
 	}
 
 	private Measurement doOneEncryptMeasurement(Encryptor cipher, BufferSet[] bufferSets) {

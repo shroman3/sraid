@@ -2,6 +2,7 @@ package com.shroman.secureraid.codec;
 
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
@@ -14,16 +15,11 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.RuntimeCryptoException;
-import org.bouncycastle.crypto.digests.SHA256Digest;
 
 import com.shroman.secureraid.utils.Utils;
 
 public class AONTAESJava extends CryptoCodecConstantKey {
-	// public static final int BYTES_IN_MEGABYTE_WITHOUT_PADDING = 1048440;//
-	// After padding it is 1048576
-
 	public static class Builder extends CryptoCodecConstantKey.Builder {
 		private AONTAESJava codec;
 
@@ -59,8 +55,12 @@ public class AONTAESJava extends CryptoCodecConstantKey {
 		}
 
 		@Override
-		protected Digest getDigest() {
-			return getSHA256Digest();
+		protected MessageDigest getDigest() {
+			try {
+				return MessageDigest.getInstance("SHA-256", "SUN");
+			} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+				throw new IllegalArgumentException("Unable to create SHA-256");
+			}
 		}
 	}
 
@@ -175,19 +175,23 @@ public class AONTAESJava extends CryptoCodecConstantKey {
 		}
 	}
 
-	static void hashEncryptedAndXORwithKey(byte[] key, int maximumOutputLength, byte[][] encrypt, Digest digest,
+	static void hashEncryptedAndXORwithKey(byte[] key, int maximumOutputLength, byte[][] encrypt, MessageDigest digest,
 			int dataShards) {
-		byte[] hashed = new byte[digest.getDigestSize()];
+		byte[] hashed = new byte[digest.getDigestLength()];
 		for (int j = 0; j < dataShards; j++) {
 			digest.update(encrypt[j], 0, maximumOutputLength);
-			digest.doFinal(hashed, 0);
+			digest.digest(hashed);
 			for (int i = 0; i < hashed.length; i++) {
 				key[i] = (byte) (key[i] ^ hashed[i]);
 			}
 		}
 	}
 
-	protected static SHA256Digest getSHA256Digest() {
-		return new SHA256Digest();
+	protected static MessageDigest getSHA256Digest() {
+		try {
+			return MessageDigest.getInstance("SHA-256", "SUN");
+		} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+			throw new IllegalArgumentException("Unable to create SHA-256");
+		}
 	}
 }

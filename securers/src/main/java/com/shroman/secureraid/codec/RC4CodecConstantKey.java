@@ -1,10 +1,12 @@
 package com.shroman.secureraid.codec;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+
 import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
-import org.bouncycastle.crypto.digests.MD5Digest;
 import org.bouncycastle.crypto.engines.RC4Engine;
 import org.bouncycastle.crypto.params.KeyParameter;
 
@@ -32,8 +34,12 @@ public class RC4CodecConstantKey extends CryptoCodecConstantKey {
 		}
 
 		@Override
-		protected Digest getDigest() {
-			return new MD5Digest();
+		protected MessageDigest getDigest() {
+			try {
+				return MessageDigest.getInstance("MD5", "SUN");
+			} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+				throw new IllegalArgumentException("Unable to create MD5");
+			}
 		}
 	}
 

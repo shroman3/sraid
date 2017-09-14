@@ -1,12 +1,14 @@
 package com.shroman.secureraid.codec;
 
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+
 import org.bouncycastle.crypto.BlockCipher;
 import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.CipherParameters;
-import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.RuntimeCryptoException;
-import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.paddings.BlockCipherPadding;
 import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher;
@@ -37,11 +39,15 @@ public class AESCodecConstantKey extends CryptoCodecConstantKey {
 		}
 
 		@Override
-		protected Digest getDigest() {
-			return new SHA256Digest();
+		protected MessageDigest getDigest() {
+			try {
+				return MessageDigest.getInstance("SHA-256", "SUN");
+			} catch (NoSuchAlgorithmException | NoSuchProviderException e) {
+				throw new IllegalArgumentException("Unable to create SHA-256");
+			}
 		}
 	}
-	
+
 	private BlockCipherPadding blockCipherPadding;
 	private CipherParameters cipherParameters;
 
@@ -56,7 +62,8 @@ public class AESCodecConstantKey extends CryptoCodecConstantKey {
 
 	@Override
 	public byte[][] encode(int shardSize, byte[][] data) {
-		// List of BlockCiphers can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
+		// List of BlockCiphers can be found at
+		// http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
 		BlockCipher blockCipher = new AESEngine();
 		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
 
@@ -73,11 +80,12 @@ public class AESCodecConstantKey extends CryptoCodecConstantKey {
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
 		decodeRS(shardPresent, shards, shardSize);
 
-
-		// List of BlockCiphers can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
+		// List of BlockCiphers can be found at
+		// http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/BlockCipher.html
 		BlockCipher blockCipher = new AESEngine();
 
-		// Paddings can be found at http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/paddings/BlockCipherPadding.html
+		// Paddings can be found at
+		// http://www.bouncycastle.org/docs/docs1.6/org/bouncycastle/crypto/paddings/BlockCipherPadding.html
 		BlockCipherPadding blockCipherPadding = new ZeroBytePadding();
 
 		BufferedBlockCipher bufferedBlockCipher = new PaddedBufferedBlockCipher(blockCipher, blockCipherPadding);
@@ -96,11 +104,10 @@ public class AESCodecConstantKey extends CryptoCodecConstantKey {
 
 	@Override
 	public int getBytesInMegaBeforePadding() {
-		return BYTES_IN_MEGABYTE - ((getDataShardsNum()*AESJavaCodec.IV_SIZE)/2);
+		return BYTES_IN_MEGABYTE - ((getDataShardsNum() * AESJavaCodec.IV_SIZE) / 2);
 	}
-	
-	public byte[][] encrypt(byte[][] data, BufferedBlockCipher bufferedBlockCipher)
-			throws InvalidCipherTextException {
+
+	public byte[][] encrypt(byte[][] data, BufferedBlockCipher bufferedBlockCipher) throws InvalidCipherTextException {
 		bufferedBlockCipher.init(true, cipherParameters);
 		return process(data, bufferedBlockCipher);
 	}
@@ -111,12 +118,13 @@ public class AESCodecConstantKey extends CryptoCodecConstantKey {
 		return process(shards, bufferedBlockCipher);
 	}
 
-	public byte[][] process(byte[][] shards, BufferedBlockCipher bufferedBlockCipher) throws InvalidCipherTextException {
+	public byte[][] process(byte[][] shards, BufferedBlockCipher bufferedBlockCipher)
+			throws InvalidCipherTextException {
 		int inputLength = shards[0].length;
 
 		int maximumOutputLength = bufferedBlockCipher.getOutputSize(inputLength);
 		byte[][] output = new byte[getDataShardsNum()][maximumOutputLength];
-		
+
 		for (int i = 0; i < getDataShardsNum(); i++) {
 			int processBytes = bufferedBlockCipher.processBytes(shards[i], 0, inputLength, output[i], 0);
 			bufferedBlockCipher.doFinal(output[i], processBytes);

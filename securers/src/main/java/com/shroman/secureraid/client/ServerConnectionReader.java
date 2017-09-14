@@ -4,6 +4,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.UnknownHostException;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.log4j.Logger;
 import org.perf4j.StopWatch;
@@ -17,8 +18,10 @@ class ServerConnectionReader extends Thread {
 	private Logger logger;
 	private boolean die = false;
 	private ObjectInputStream input = null;
+	private CountDownLatch barrier;
 
-	ServerConnectionReader(int serverId, PushResponseInterface pushResponse, ObjectInputStream input) throws UnknownHostException, IOException {
+	ServerConnectionReader(CountDownLatch barrier, int serverId, PushResponseInterface pushResponse, ObjectInputStream input) throws UnknownHostException, IOException {
+		this.barrier = barrier;
 		this.serverId = serverId;
 		this.pushResponse = pushResponse;
 		this.input = input;
@@ -27,6 +30,7 @@ class ServerConnectionReader extends Thread {
 
 	@Override
 	public void run() {
+		barrier.countDown();
 		try {
 			while (!die) {
 				try {
