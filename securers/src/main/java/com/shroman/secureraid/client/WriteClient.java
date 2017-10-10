@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
@@ -123,8 +124,9 @@ public class WriteClient {
 	}
 
 	void initRandomChunkReader() throws ClassNotFoundException, IOException, XMLParsingException, NoSuchAlgorithmException {
-		if (codec.hasRandomRead()) {			
-			reader.setShouldPresent(codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum() + 1);
+		if (codec.hasRandomRead()) {
+			int chunksNum = codec.getDataShardsNum()/2;
+			reader.setShouldPresent(codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum() + chunksNum);
 		}
 		initReader();
 	}
@@ -132,7 +134,7 @@ public class WriteClient {
 	void finalizeEncoder() throws InterruptedException, IOException {
 		executer.shutdown();
 		executer.awaitTermination(10, TimeUnit.MINUTES);
-		reader.logThroughput();
+//		reader.logThroughput();
 	}
 
 	void finalizeWriter() throws InterruptedException, IOException {
@@ -378,24 +380,62 @@ public class WriteClient {
 	}
 
 	private void readRandomChunks(Item item, Random random) {
-		Set<Integer> stripes = new HashSet<>(item.getStripesNumber() / 2); 
-		for (int i = 0; i < item.getStripesNumber() / 2; i++) {
-			int stripe = random.nextInt(item.getStripesNumber());
-			while (stripes.contains(stripe)) {
-				stripe = random.nextInt(item.getStripesNumber());
-			}
-			stripes.add(stripe);
-			int chunk = random.nextInt(codec.getDataShardsNum());
-			reader.readStripe(item, stripe);
-			int secretChunks = codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum();
-			int stripeStep = ((stripe + item.getId()) * stepSize) % serversNum;
+//		Set<Integer> stripes = new HashSet<>(item.getStripesNumber() / 2); 
+//		for (int i = 0; i < item.getStripesNumber() / 2; i++) {
+//			int stripe = random.nextInt(item.getStripesNumber());
+//			while (stripes.contains(stripe)) {
+//				stripe = random.nextInt(item.getStripesNumber());
+//			}
+//			stripes.add(stripe);
+//			Set<Integer> chunks = new HashSet<Integer>()
+//			int chunk = random.nextInt(codec.getDataShardsNum());
+//			reader.readStripe(item, stripe);
+//			int secretChunks = codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum();
+//			int stripeStep = ((stripe + item.getId()) * stepSize) % serversNum;
+//			for (int j = 0; j < secretChunks; j++) {
+//				int serverId = (j + stripeStep) % serversNum;
+//				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+//			}
+//			int serverId = (chunk + secretChunks + stripeStep) % serversNum;
+//			servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+//		}
+		
+		int secretChunks = codec.getSize() - codec.getParityShardsNum() - codec.getDataShardsNum();
+		int chunksNum = codec.getDataShardsNum()/2;
+		Map<Integer, Set<Integer>> stripes = getStripesChunks(item, random, chunksNum);
+		for (Entry<Integer, Set<Integer>> stripe : stripes.entrySet()) {
+			reader.readStripe(item, stripe.getKey());
+			int stripeStep = ((stripe.getKey() + item.getId()) * stepSize) % serversNum;
 			for (int j = 0; j < secretChunks; j++) {
 				int serverId = (j + stripeStep) % serversNum;
-				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe.getKey()));
 			}
-			int serverId = (chunk + secretChunks + stripeStep) % serversNum;
-			servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe));
+			for (Integer chunk : stripe.getValue()) {				
+				int serverId = (chunk + secretChunks + stripeStep) % serversNum;
+				servers.get(serverId).addMessage(new Message(MessageType.READ, null, item.getId(), stripe.getKey()));
+			}
 		}
+	}
+
+	private Map<Integer, Set<Integer>> getStripesChunks(Item item, Random random, int chunksNum) {
+		Map<Integer, Set<Integer>> stripes = new HashMap<>();
+		for (int i = 0; i < item.getStripesNumber() / 2; i++) {
+			int stripe = random.nextInt(item.getStripesNumber());
+			while (stripes.containsKey(stripe)) {
+				stripe = random.nextInt(item.getStripesNumber());
+			}
+			
+			Set<Integer> chunks = new HashSet<Integer>();			
+			for (int j = 0; j < chunksNum; j++) {
+				int chunk = random.nextInt(codec.getDataShardsNum());
+				while (chunks.contains(chunk)) {
+					chunk = random.nextInt(codec.getDataShardsNum());
+				}
+				chunks.add(chunk);
+			}
+			stripes.put(stripe, chunks);
+		}
+		return stripes;
 	}
 
 	private void readRandomStripes(Item item, Random random) {

@@ -19,6 +19,8 @@ import com.shroman.secureraid.codec.PackedSecretSharingCodecRA;
 import com.shroman.secureraid.codec.SecretSharingCodec;
 import com.shroman.secureraid.codec.SecureBackblazeRS;
 import com.shroman.secureraid.codec.SecureBackblazeRSRA;
+import com.shroman.secureraid.codec.SecureEvenodd;
+import com.shroman.secureraid.codec.SecureEvenoddRA;
 import com.shroman.secureraid.utils.Utils;
 
 public enum CodecType {
@@ -192,14 +194,22 @@ public enum CodecType {
 //			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
 //		}
 //	},
-//SECURE_EVENODD("EVENODD") {
-//	@Override
-//	Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
-//		SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
-//		builder.setDataShardsNum(k).setParityShardsNum(r);
-//		return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
-//	}
-//},
+	SECURE_EVENODD("EVENODD", "EO") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+		}
+	},
+	SECURE_EVENODD_RA("EVENODD_RA", "EO_RA") {
+		@Override
+		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+			SecureEvenoddRA.Builder builder = new SecureEvenoddRA.Builder();
+			builder.setDataShardsNum(k).setParityShardsNum(r);
+			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+		}
+	},
 //	AES("AES") {
 //	@Override
 //	Codec buildCodecFromArgs(int k, int r, int z, String randomName) {

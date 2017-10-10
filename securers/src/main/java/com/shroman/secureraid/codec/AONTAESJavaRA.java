@@ -61,14 +61,16 @@ public class AONTAESJavaRA extends AONTAESJava {
 			byte[] iv = new byte[AESJavaCodec.IV_SIZE];
 			byte[][] output = new byte[getDataShardsNum()][];
 
-			int i = 0;
-			System.arraycopy(shards[i], 0, iv, 0, AESJavaCodec.IV_SIZE);
-			IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
-			int encryptedSize = shardSize - AESJavaCodec.IV_SIZE - getKeySize();
-			cipherDecrypt.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
-			int maximumOutputLength = cipherDecrypt.getOutputSize(encryptedSize);
-			output[i] = new byte[maximumOutputLength];
-			cipherDecrypt.doFinal(shards[i], AESJavaCodec.IV_SIZE, encryptedSize, output[i], 0);
+//			int i = 0;
+			for (int i = 0; i < output.length/2; i++) {
+				System.arraycopy(shards[i], 0, iv, 0, AESJavaCodec.IV_SIZE);
+				IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+				int encryptedSize = shardSize - AESJavaCodec.IV_SIZE - getKeySize();
+				cipherDecrypt.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
+				int maximumOutputLength = cipherDecrypt.getOutputSize(encryptedSize);
+				output[i] = new byte[maximumOutputLength];
+				cipherDecrypt.doFinal(shards[i], AESJavaCodec.IV_SIZE, encryptedSize, output[i], 0);				
+			}
 			return output;
 		} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
 				| InvalidAlgorithmParameterException | ShortBufferException | IllegalBlockSizeException

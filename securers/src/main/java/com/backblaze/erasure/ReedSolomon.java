@@ -113,21 +113,24 @@ public class ReedSolomon {
 	 *            The number of bytes to encode in each shard.
 	 *
 	 */
-	public void encodeParityColumn(byte[][] shards, int offset, int byteCount, int parityColumnIndex) {
+	public void encodeParityColumn(byte[][] shards, int offset, int byteCount, int parityColumnNum) {
 		// Check arguments.
 		checkBuffersAndSizes(shards, offset, byteCount, dataShardCount);
 
 		// Build the array of output buffers.
-		byte[][] outputs = new byte[1][];
-		outputs[0] = shards[parityColumnIndex];
-
-//		checkBuffersAndSizes(outputs, 0, byteCount, 1);
-
-		byte[][] parityRow = new byte[1][];
-		parityRow[0] = parityRows[parityColumnIndex - dataShardCount];
+		byte[][] outputs = new byte[parityColumnNum][];
+		byte[][] parityRow = new byte[parityColumnNum][];
+		int count = 0;
+		for (int i = dataShardCount; i < shards.length && count < parityColumnNum; i++) {
+			if (shards[i] != null) {
+				outputs[count] = shards[i];				
+				parityRow[count] = parityRows[i - dataShardCount];
+				count++;
+			}
+		}
 
 		// Do the coding.
-		codingLoop.codeSomeShards(parityRow, shards, dataShardCount, outputs, 1, offset, byteCount);
+		codingLoop.codeSomeShards(parityRow, shards, dataShardCount, outputs, parityColumnNum, offset, byteCount);
 	}
 	
 	/**

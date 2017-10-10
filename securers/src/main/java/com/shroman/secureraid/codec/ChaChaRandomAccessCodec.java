@@ -47,10 +47,10 @@ public class ChaChaRandomAccessCodec extends ChaChaCodec {
 				output[i] = new byte[shardSize - IV_SIZE];
 				decrypt.processBytes(shards[i], IV_SIZE, shardSize - IV_SIZE, output[i], 0);
 				decrypt.reset();
-				return output;
 			}
 		}
-		throw new IllegalArgumentException("Something went wrong, given empty stripe");
+		return output;
+//		throw new IllegalArgumentException("Something went wrong, given empty stripe");
 	}
 
 	public Builder getSelfBuilder() {

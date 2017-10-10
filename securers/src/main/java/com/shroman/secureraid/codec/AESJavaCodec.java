@@ -21,6 +21,7 @@ import com.shroman.secureraid.utils.Utils;
 public class AESJavaCodec extends CryptoCodecWithKey {
 	public static final int IV_SIZE = 16;
 	public static final int KEY_SIZE = 32;
+	private static final int BUFFER_SIZE = 16 * 1024; // Average size in system
 
 	public static class Builder extends CryptoCodecWithKey.Builder {
 		private AESJavaCodec codec;
@@ -32,7 +33,7 @@ public class AESJavaCodec extends CryptoCodecWithKey {
 		Builder(AESJavaCodec secureRS) {
 			setCodec(new AESJavaCodec(secureRS));
 		}
-		
+
 		public Builder setProvider(String provider) {
 			Utils.validateNotNull(provider, "provider");
 			codec.provider = provider;
@@ -44,7 +45,7 @@ public class AESJavaCodec extends CryptoCodecWithKey {
 			Utils.validateNotNull(codec.provider, "provider");
 			super.validate();
 		}
-	
+
 		@Override
 		public AESJavaCodec build() {
 			validate();
@@ -56,7 +57,7 @@ public class AESJavaCodec extends CryptoCodecWithKey {
 			this.codec = codec;
 		}
 	}
-	
+
 	private String provider;
 
 	AESJavaCodec() {
@@ -66,7 +67,7 @@ public class AESJavaCodec extends CryptoCodecWithKey {
 		super(other);
 		provider = other.provider;
 	}
-	
+
 	public String getProvider() {
 		return provider;
 	}
@@ -76,75 +77,97 @@ public class AESJavaCodec extends CryptoCodecWithKey {
 		try {
 			byte[][] encrypt = encrypt(shardSize, data, key);
 			return encodeRS(encrypt);
-		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | InvalidAlgorithmParameterException | ShortBufferException | IllegalBlockSizeException | BadPaddingException | NoSuchProviderException e) {
+		} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+				| InvalidAlgorithmParameterException | ShortBufferException | IllegalBlockSizeException
+				| BadPaddingException | NoSuchProviderException e) {
 			e.printStackTrace();
 			throw new RuntimeCryptoException(e.getMessage());
 		}
 	}
-	
+
 	@Override
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize, byte[] key) {
 		decodeRS(shardPresent, shards, shardSize);
 		try {
 			return decrypt(shardSize, shards, key);
-		} catch (InvalidAlgorithmParameterException | ShortBufferException | IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
+		} catch (InvalidAlgorithmParameterException | ShortBufferException | IllegalBlockSizeException
+				| BadPaddingException | InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException
+				| NoSuchProviderException e) {
 			e.printStackTrace();
 			throw new RuntimeCryptoException(e.getMessage());
 		}
 	}
-    public byte[][] encrypt(int shardSize, byte[][] data, byte[] key) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, ShortBufferException, IllegalBlockSizeException, BadPaddingException, NoSuchProviderException  {
-        // Generating IV.
-        byte[] iv = new byte[IV_SIZE];
-        SecureRandom random = Utils.createTrueRandom();
-        random.nextBytes(iv);
-        IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
-        SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
 
-        // Encrypt.
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
-        cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
-        int maximumOutputLength = cipher.getOutputSize(shardSize);
+	public byte[][] encrypt(int shardSize, byte[][] data, byte[] key) throws NoSuchAlgorithmException,
+			NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, ShortBufferException,
+			IllegalBlockSizeException, BadPaddingException, NoSuchProviderException {
+		// Generating IV.
+		byte[] iv = new byte[IV_SIZE];
+		SecureRandom random = Utils.createTrueRandom();
+		random.nextBytes(iv);
+		IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+		SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
 
-        byte[][] encrypted = new byte[getDataShardsNum()][];
-        for (int i = 0; i < encrypted.length; i++) {
-        	encrypted[i] = new byte[maximumOutputLength + IV_SIZE];
-        	System.arraycopy(iv, 0, encrypted[i], 0, IV_SIZE);
-        	cipher.doFinal(data[i], 0, shardSize, encrypted[i], IV_SIZE);
+		// Encrypt.
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
+		cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
+		int maximumOutputLength = cipher.getOutputSize(shardSize);
+
+		byte[][] encrypted = new byte[getDataShardsNum()][];
+		for (int i = 0; i < encrypted.length; i++) {
+			encrypted[i] = new byte[maximumOutputLength + IV_SIZE];
+			System.arraycopy(iv, 0, encrypted[i], 0, IV_SIZE);
+			process(cipher, data[i], 0, shardSize, encrypted[i], IV_SIZE);
 		}
-        
-        return encrypted;
-    }
 
-	 public byte[][] decrypt(int shardSize, byte[][] shards, byte[] key) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, ShortBufferException, IllegalBlockSizeException, BadPaddingException, NoSuchProviderException {
-		 SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
-		 Cipher cipherDecrypt = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
-		 byte[] iv = new byte[IV_SIZE];
-		 
-		 byte[][] output = new byte[getDataShardsNum()][];
-		 for (int i = 0; i < getDataShardsNum(); i++) {
-			 System.arraycopy(shards[i], 0, iv, 0, IV_SIZE);
-			 IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
-			 int encryptedSize = shardSize - IV_SIZE;
-			 cipherDecrypt.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
-			 int maximumOutputLength = cipherDecrypt.getOutputSize(encryptedSize);
-			 output[i] = new byte[maximumOutputLength];
-			 cipherDecrypt.doFinal(shards[i], IV_SIZE, encryptedSize, output[i], 0);
-		 }
-		 
-		 return output;
-	 }
-	 
+		return encrypted;
+	}
+
+	public byte[][] decrypt(int shardSize, byte[][] shards, byte[] key) throws NoSuchAlgorithmException,
+			NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, ShortBufferException,
+			IllegalBlockSizeException, BadPaddingException, NoSuchProviderException {
+		SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
+		Cipher cipherDecrypt = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
+		byte[] iv = new byte[IV_SIZE];
+
+		byte[][] output = new byte[getDataShardsNum()][];
+		for (int i = 0; i < getDataShardsNum(); i++) {
+			System.arraycopy(shards[i], 0, iv, 0, IV_SIZE);
+			IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+			int encryptedSize = shardSize - IV_SIZE;
+			cipherDecrypt.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
+			int maximumOutputLength = cipherDecrypt.getOutputSize(encryptedSize);
+			output[i] = new byte[maximumOutputLength];
+			process(cipherDecrypt, shards[i], IV_SIZE, encryptedSize, output[i], 0);
+		}
+
+		return output;
+	}
+
 	public Builder getSelfBuilder() {
 		return new Builder(this);
 	}
-	
+
 	@Override
 	public int getBytesInMegaBeforePadding() {
-		return BYTES_IN_MEGABYTE - ((getDataShardsNum()*IV_SIZE)/2);
+		return BYTES_IN_MEGABYTE - ((getDataShardsNum() * IV_SIZE) / 2);
 	}
 
 	@Override
 	public int getKeySize() {
 		return KEY_SIZE;
+	}
+
+	protected void process(Cipher cipher, byte[] in, int inputOffset, int size, byte[] out, int outputOffset)
+			throws ShortBufferException, IllegalBlockSizeException, BadPaddingException {
+		int done = 0;
+		int stripes = (in.length - 1) / BUFFER_SIZE;
+		for (int i = 0; i < stripes; ++i) {
+			done += cipher.update(in, inputOffset + BUFFER_SIZE * i, BUFFER_SIZE, out, outputOffset + done);
+		}
+		done += cipher.update(in, inputOffset + BUFFER_SIZE * stripes, size - BUFFER_SIZE * stripes, out,
+				outputOffset + done);
+		byte[] doFinal = cipher.doFinal(in, size, 0);
+		System.arraycopy(doFinal, 0, out, done + outputOffset, doFinal.length);
 	}
 }

@@ -12,9 +12,9 @@ import com.shroman.secureraid.utils.Utils;
 
 
 public abstract class BasicBenchmark <T extends testable> {
-	private static final int BUFFER_SIZE = 500 * 1024; // Average size in system 
+	private static final int BUFFER_SIZE = 2048 * 1024; // Average size in system 
 	private static final int PROCESSOR_CACHE_SIZE = 40 * 1024 * 1024;
-	private static final int TWICE_PROCESSOR_CACHE_SIZE = 4 * PROCESSOR_CACHE_SIZE;
+	private static final int TWICE_PROCESSOR_CACHE_SIZE = 2 * PROCESSOR_CACHE_SIZE;
 	private static final long MEASUREMENT_DURATION = 10000;
 	
 	final int NUMBER_OF_BUFFER_SETS = TWICE_PROCESSOR_CACHE_SIZE / BUFFER_SIZE + 1;

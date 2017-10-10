@@ -41,7 +41,9 @@ public class PackedSecretSharingCodecRA extends PackedSecretSharingCodec {
 		PackedSecretCombine combine = buildPSCombine(shardPresent, shards);
 
 		byte[][] secret = new byte[getDataShardsNum()][];
-		secret[0] = combine.extractSecret(0);
+		for (int i = 0; i < secret.length/2; i++) {			
+			secret[i] = combine.extractSecret(i);
+		}
 		return secret;
 	}
 }

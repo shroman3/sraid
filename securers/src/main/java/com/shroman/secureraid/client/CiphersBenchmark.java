@@ -21,8 +21,6 @@ import org.bouncycastle.crypto.CipherParameters;
 import org.bouncycastle.crypto.DataLengthException;
 import org.bouncycastle.crypto.StreamCipher;
 import org.bouncycastle.crypto.engines.ChaChaEngine;
-import org.bouncycastle.crypto.engines.RC4Engine;
-import org.bouncycastle.crypto.engines.Salsa20Engine;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.bouncycastle.crypto.params.ParametersWithIV;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -31,6 +29,8 @@ import com.shroman.secureraid.client.BasicBenchmark.testable;
 import com.shroman.secureraid.client.CiphersBenchmark.cipher;
 
 public class CiphersBenchmark extends BasicBenchmark<cipher> {
+	private static int BUFFER_SIZE; // Average size in system 
+
 	public static interface Encryptor {
 		void encrypt(byte[] in, byte[] out);
 
@@ -38,8 +38,11 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 	}
 
 	public static void main(String[] args) {
+//		String configName = "C:/users/shroman/cfg/pkcs11.cfg";
+//		Security.addProvider(new sun.security.pkcs10.SunPKCS11(configName));
 		Security.addProvider(new BouncyCastleProvider());
     	int threads = Integer.parseInt(args[0]);
+    	BUFFER_SIZE = Integer.parseInt(args[1])*1024;
 		(new CiphersBenchmark(threads)).run();
 	}
 	
@@ -141,11 +144,35 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 					cipher.init(mode, secretKeySpec);
 				}
 //				int outputSize = cipher.getOutputSize(in.length);
-				cipher.doFinal(in, 0, in.length, out, 0);
+				int inputOffset = 0;
+				int outputOffset = 0;
+				process(in, out, inputOffset, outputOffset);
 			} catch (InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException
 					| IllegalBlockSizeException | BadPaddingException e) {
 				e.printStackTrace();
 			}
+		}
+
+		private void process(byte[] in, byte[] out, int inputOffset, int outputOffset)
+				throws ShortBufferException, IllegalBlockSizeException, BadPaddingException {
+			
+//			int done = 0;
+//			
+//			int stripes = in.length/BUFFER_SIZE;
+//			for (int i=0; i< stripes; ++i) {
+//				done += cipher.update(in, inputOffset + BUFFER_SIZE*i, BUFFER_SIZE, out, outputOffset + done);
+//			}
+//			byte[] doFinal = cipher.doFinal(in, inputOffset + done, in.length - BUFFER_SIZE*stripes);
+//			System.arraycopy(doFinal, 0, out, done, doFinal.length);
+			int done = 0;
+			int stripes = (in.length - 1) / BUFFER_SIZE;
+			for (int i = 0; i < stripes; ++i) {
+				done += cipher.update(in, inputOffset + BUFFER_SIZE * i, BUFFER_SIZE, out, outputOffset + done);
+			}
+			done += cipher.update(in, inputOffset + BUFFER_SIZE * stripes, in.length - BUFFER_SIZE * stripes, out,
+					outputOffset + done);
+			byte[] doFinal = cipher.doFinal(in, in.length, 0);
+			System.arraycopy(doFinal, 0, out, done + outputOffset, doFinal.length);
 		}
 	}
 
@@ -171,7 +198,22 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 		private void process(byte[] in, byte[] out, boolean mode) {
 			try {
 				cipher.init(mode, cipherParameters);
-				cipher.processBytes(in, 0, in.length, out, 0);
+
+				int done = 0;
+				int stripes = (in.length - 1) / BUFFER_SIZE;
+				for (int i = 0; i < stripes; i++) {
+					done += cipher.processBytes(in, BUFFER_SIZE*i, BUFFER_SIZE, out, done);					
+				}
+				if (in.length - BUFFER_SIZE > 0) {					
+					cipher.processBytes(in, BUFFER_SIZE * stripes, in.length - BUFFER_SIZE * stripes, out, done);
+				}
+//				for (int i = 0; i < stripes; ++i) {
+//					done += cipher.update(in, inputOffset + BUFFER_SIZE * i, BUFFER_SIZE, out, outputOffset + done);
+//				}
+//				done += cipher.update(in, inputOffset + BUFFER_SIZE * stripes, in.length - BUFFER_SIZE * stripes, out,
+//						outputOffset + done);
+//				byte[] doFinal = cipher.doFinal(in, in.length, 0);
+//				System.arraycopy(doFinal, 0, out, done + outputOffset, doFinal.length);
 			} catch (DataLengthException e) {
 				e.printStackTrace();
 			}
@@ -179,82 +221,82 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 	}
 
 	private static enum Encryptors {
-		AESJ_ECB_16 {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				byte[] key16 = new byte[16];
-				System.arraycopy(key, 0, key16, 0, 16);
-				return new AES(key16, null, "SunJCE", "ECB");
-			}
-		},
-		AESBC_ECB_16 {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				byte[] key16 = new byte[16];
-				System.arraycopy(key, 0, key16, 0, 16);
-				return new AES(key16, null, "BC", "ECB");
-			}
-		},
-		AESJ_CBC_16 {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				byte[] key16 = new byte[16];
-				System.arraycopy(key, 0, key16, 0, 16);
-				return new AES(key16, iv, "SunJCE", "CBC");
-			}
-		},
-		AESBC_CBC_16 {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				byte[] key16 = new byte[16];
-				System.arraycopy(key, 0, key16, 0, 16);
-				return new AES(key16, iv, "BC", "CBC");
-			}
-		},
-		AESJ_CTR_16 {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				byte[] key16 = new byte[16];
-				System.arraycopy(key, 0, key16, 0, 16);
-				return new AES(key16, iv, "SunJCE", "CTR");
-			}
-		},
-		AESJ_ECB {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				return new AES(key, null, "SunJCE", "ECB");
-			}
-		},
-		AESBC_ECB {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				return new AES(key, null, "BC", "ECB");
-			}
-		},
-		AESJ_CBC {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				return new AES(key, iv, "SunJCE", "CBC");
-			}
-		},
-		AESBC_CBC {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				return new AES(key, iv, "BC", "CBC");
-			}
-		},
-		AESJ_CTR {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				return new AES(key, iv, "SunJCE", "CTR");
-			}
-		},
-		AESBC_CTR {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				return new AES(key, iv, "BC", "CTR");
-			}
-		},
+//		AESJ_ECB_16 {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				byte[] key16 = new byte[16];
+//				System.arraycopy(key, 0, key16, 0, 16);
+//				return new AES(key16, null, "SunJCE", "ECB");
+//			}
+//		},
+//		AESBC_ECB_16 {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				byte[] key16 = new byte[16];
+//				System.arraycopy(key, 0, key16, 0, 16);
+//				return new AES(key16, null, "BC", "ECB");
+//			}
+//		},
+//		AESJ_CBC_16 {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				byte[] key16 = new byte[16];
+//				System.arraycopy(key, 0, key16, 0, 16);
+//				return new AES(key16, iv, "SunJCE", "CBC");
+//			}
+//		},
+//		AESBC_CBC_16 {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				byte[] key16 = new byte[16];
+//				System.arraycopy(key, 0, key16, 0, 16);
+//				return new AES(key16, iv, "BC", "CBC");
+//			}
+//		},
+//		AESJ_CTR_16 {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				byte[] key16 = new byte[16];
+//				System.arraycopy(key, 0, key16, 0, 16);
+//				return new AES(key16, iv, "SunJCE", "CTR");
+//			}
+//		},
+//		AESJ_ECB {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, null, "SunJCE", "ECB");
+//			}
+//		},
+//		AESBC_ECB {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, null, "BC", "ECB");
+//			}
+//		},
+//		AESJ_CBC {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, iv, "SunJCE", "CBC");
+//			}
+//		},
+//		AESBC_CBC {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, iv, "BC", "CBC");
+//			}
+//		},
+//		AESJ_CTR {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, iv, "SunJCE", "CTR");
+//			}
+//		},
+//		AESBC_CTR {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, iv, "BC", "CTR");
+//			}
+//		},
 		CHACHA20 {
 			@Override
 			Encryptor getEncryptor(byte[] key, byte[] iv) {
@@ -262,20 +304,20 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 				return new StreamEncryptor(cipherParameters, new ChaChaEngine());
 			}
 		},
-		SALSA20 {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				CipherParameters cipherParameters = new ParametersWithIV(new KeyParameter(key, 0, 16), iv, 0, 8);
-				return new StreamEncryptor(cipherParameters, new Salsa20Engine());
-			}
-		},
-		RC4 {
+//		SALSA20 {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				CipherParameters cipherParameters = new ParametersWithIV(new KeyParameter(key, 0, 16), iv, 0, 8);
+//				return new StreamEncryptor(cipherParameters, new Salsa20Engine());
+//			}
+//		},
+/*		RC4 {
 			@Override
 			Encryptor getEncryptor(byte[] key, byte[] iv) {
 				CipherParameters cipherParameters = new KeyParameter(key, 0, 16);
 				return new StreamEncryptor(cipherParameters, new RC4Engine());
 			}
-		};
+		}*/;
 		abstract Encryptor getEncryptor(byte[] key, byte[] iv);
 	}
 }

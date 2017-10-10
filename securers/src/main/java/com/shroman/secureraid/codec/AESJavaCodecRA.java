@@ -64,11 +64,12 @@ public class AESJavaCodecRA extends AESJavaCodec {
 		        	cipherDecrypt.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
 		        	int maximumOutputLength = cipherDecrypt.getOutputSize(encryptedSize);
 					output[i] = new byte[maximumOutputLength];
-		        	cipherDecrypt.doFinal(shards[i], IV_SIZE, encryptedSize, output[i], 0);
-					return output;
+//		        	cipherDecrypt.doFinal(shards[i], IV_SIZE, encryptedSize, output[i], 0);
+					process(cipherDecrypt, shards[i], IV_SIZE, encryptedSize, output[i], 0);
 				}
 			}
-			throw new IllegalArgumentException("Something went wrong, given empty stripe");
+			return output;
+//			throw new IllegalArgumentException("Something went wrong, given empty stripe");
 		} catch (InvalidKeyException | InvalidAlgorithmParameterException | ShortBufferException | IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
 			e.printStackTrace();
 			throw new RuntimeCryptoException(e.getMessage());

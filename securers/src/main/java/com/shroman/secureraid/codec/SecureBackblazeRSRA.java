@@ -34,13 +34,13 @@ public class SecureBackblazeRSRA extends SecureBackblazeRS {
 	
 	@Override
 	public byte[][] decode(boolean[] shardPresent, byte[][] shards, int shardSize) {
-		int dataColIndex = getSecrecyShardsNum();
-		for (; dataColIndex < shardPresent.length; dataColIndex++) {
-			if (shardPresent[dataColIndex]) {
-				break;
+		int count = 0;
+		for (int i = getSecrecyShardsNum(); i < shards.length - getParityShardsNum(); i++) {
+			if (shards[i] != null) {
+				count++;
 			}
 		}
-		getSecrecyRS().encodeParityColumn(shards, 0, shardSize, dataColIndex);
+		getSecrecyRS().encodeParityColumn(shards, 0, shardSize, count);
 		byte[][] data = new byte[getDataShardsNum()][];
 		System.arraycopy(shards, getSecrecyShardsNum(), data, 0, getDataShardsNum());
 		return data;
@@ -53,10 +53,11 @@ public class SecureBackblazeRSRA extends SecureBackblazeRS {
 	
 	@Override
 	protected boolean[] chunksPresent(byte[][] chunks, int chunkSize) {
-		boolean[] shardPresent = new boolean[getSize()];
-		for (int j = 0; j < getSize(); ++j) {
-			shardPresent[j] = (chunks[j] != null);
-		}
-		return shardPresent;
+//		boolean[] shardPresent = new boolean[getSize()];
+//		for (int j = 0; j < getSize(); ++j) {
+//			shardPresent[j] = (chunks[j] != null);
+//		}
+//		return shardPresent;
+		return null;
 	}
 }
