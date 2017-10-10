@@ -2,15 +2,23 @@ package com.shroman.secureraid.codec;
 
 import java.util.Random;
 
+import com.shroman.secureraid.utils.Utils;
+
+
 public class SecureEvenodd extends SecureCodec {
 
 	public static class Builder extends SecureCodec.Builder {
 		private SecureEvenodd secureEvenodd;
-
+		
+		
 		public Builder() {
 			setCodec(new SecureEvenodd());
 		}
 
+		public Builder(CodingLoop CodingLoop) {
+			setCodec(new SecureEvenodd(CodingLoop));
+		}
+		
 		Builder(SecureEvenodd secureRS) {
 			setCodec(new SecureEvenodd(secureRS));
 		}
@@ -19,6 +27,11 @@ public class SecureEvenodd extends SecureCodec {
 		public SecureEvenodd build() {
 			validate();
 			return new SecureEvenodd(secureEvenodd);
+		}
+		
+		public Builder setCodingLoop(CodingLoop CodingLoop) {
+			secureEvenodd.codingLoop=CodingLoop;
+			return this;
 		}
 
 		@Override
@@ -32,24 +45,37 @@ public class SecureEvenodd extends SecureCodec {
 				throw new IllegalArgumentException(
 						"Secure EVENODD r should be up to 2, given r=" + secureEvenodd.getSecrecyShardsNum());
 			}
+			Utils.validateNotNull(secureEvenodd.codingLoop, "cooding loop");
 		}
 
-		protected void setCodec(SecureEvenodd secureEvenodd) {
-			super.setCodec(secureEvenodd);
-			this.secureEvenodd = secureEvenodd;
+		protected void setCodec(SecureEvenodd SecureEvenoddCL1) {
+			super.setCodec(SecureEvenoddCL1);
+			this.secureEvenodd = SecureEvenoddCL1;
 		}
+	
 	}
 
-	private int p = nearestPrime(getDataShardsNum() + 2);
+	public int p = nearestPrime(getDataShardsNum() + 2);
+	
+	public CodingLoop codingLoop;
 
+	public CodingLoop getCodingLoop() {
+		return codingLoop;
+	}
+	
+	
 	SecureEvenodd() {
+	}
+	
+	SecureEvenodd(CodingLoop CodingLoop) {
+		this.codingLoop=CodingLoop;
 	}
 
 	SecureEvenodd(SecureEvenodd other) {
 		super(other);
+		this.codingLoop=other.codingLoop;
 
 	}
-
 	
 	public static int nearestPrime(int x) {
 		if (isPrime(x)) {
@@ -99,17 +125,28 @@ public class SecureEvenodd extends SecureCodec {
 
 		byte[][] shards = new byte[getSize()][shardSize];
 		initializationKeys(shards, shardSize);
-		// here I start computing the generator matrix of evenodd*
-		parityPropagate(shards, shardSize);
-		int numberOfChunks = 1 + (shardSize / (p - 1)); // each chunk is of p-1 rows 
-		for (int chunk = 0; chunk < numberOfChunks; chunk++) {
-			EVENODDSTAR(shardSize, shards, p, chunk);
-			// now columns 0 and 1 are the Random Key and column 2 to p-1 are
-			// the message encryption key
-			hideData(shards, data, shardSize, chunk);
-			EVENODD(shardSize, shards, p, chunk);
-		}
-
+		int numberOfChunks = 1 + (shardSize / (p - 1)); // each chunk is of p-1 rows
+		getCodingLoop().encode(shardSize, shards, p, numberOfChunks, data, getDataShardsNum());
+//		switch(getCodingLoop().ordinal()){
+//		case 0: 	
+//			EVENODDSTARChunkRowColumn(shardSize, shards, p, numberOfChunks, data);
+//			break;
+//		case 1:		
+//			EVENODDSTARChunkColumnRow(shardSize, shards, p, numberOfChunks, data);
+//			break; 
+//		case 2:
+//			EVENODDSTARColumnChunkRow(shardSize, shards, p, numberOfChunks, data);
+//			break;
+//		case 3:
+//			EVENODDSTARColumnRowChunk(shardSize, shards, p, numberOfChunks, data);
+//			break;
+//		case 4:
+//			EVENODDSTARRowColumnChunk(shardSize, shards, p, numberOfChunks, data);
+//			break;
+//		case 5:
+//			EVENODDSTARRowChunkColumn(shardSize, shards, p, numberOfChunks, data);
+//			break;
+//		}
 		return shards;
 	}
 
@@ -131,10 +168,13 @@ public class SecureEvenodd extends SecureCodec {
 		else{
 			RecoverTwoFailures(shards, shardSize, numberOfChunks, failures);
 		}
-
+		//System.out.println("Before Decrypt \n\n\n\n\n\n\n\n\n\n\n");
+		//printShard(shardSize, shards, getSize());
+		//return shards;
 		return decrypt(shards, shardSize, data);
 	}
 
+	
 	public Builder getSelfBuilder() {
 		return new Builder(this);
 	}
@@ -146,8 +186,8 @@ public class SecureEvenodd extends SecureCodec {
 		int i = (shard*getDataShardsNum())/4;
 		return i;
 	}
-
-	private void EVENODD(int shardSize, byte[][] shards, int p, int chunk) {
+	
+	private static void EVENODD(int shardSize, byte[][] shards, int p, int chunk, int dataShardsNum) {
 		for (int i = 0; i < p - 1 && (chunk * (p - 1) + i) < shardSize; i++) {
 			shards[shards.length - 1][(chunk * (p - 1) + i)] = 0;
 			shards[shards.length - 2][(chunk * (p - 1) + i)] = 0;
@@ -157,17 +197,17 @@ public class SecureEvenodd extends SecureCodec {
 			byte mainDiagonal = 0;
 			for (int j = 0; j < p; j++) { // colums
 				// parity
-				if (j < getDataShardsNum() + 2) {
+				if (j < dataShardsNum + 2) {
 					shards[shards.length - 2][(chunk * (p - 1) + i)] ^= shards[j][chunk * (p - 1) + i];
 				}
 				// main diagonal OF EvenODD
 				if ((chunk * (p - 1) + j) < shardSize) {
 					if (j != p - 1) {
-						if (p - (j + 1) < getDataShardsNum() + 2) {
+						if (p - (j + 1) < dataShardsNum + 2) {
 							mainDiagonal ^= shards[p - (j + 1)][j + (chunk * (p - 1))];
 						}
 						// The Second Diagonal of EVENODD
-						if (((p - (j - i)) % p) < getDataShardsNum() + 2) {
+						if (((p - (j - i)) % p) < dataShardsNum + 2) {
 							shards[shards.length - 1][(chunk * (p - 1) + i)] ^= shards[(p - (j - i)) % p][j
 									+ (chunk * (p - 1))];
 						}
@@ -184,7 +224,6 @@ public class SecureEvenodd extends SecureCodec {
 		// code, there is one step
 		// construction of EVENODD*
 		for (int i = 0; i < p - 1; i++) {
-
 			// the main diagonal //
 			for (int j = 0; j < p - 1 && (chunk * (p - 1) + j) < shardSize; j++) {
 				if ((chunk * (p - 1) + i) < shardSize && (p - (j + 1)) < getDataShardsNum() + 2) {
@@ -195,8 +234,7 @@ public class SecureEvenodd extends SecureCodec {
 			// TODO: do I need 2 different for loops?
 			// the other diagonal of EVENODD* //
 			for (int j = 0; j < p - 1 && (chunk * (p - 1) + j) < shardSize; j++) {
-				if (p - (j - i) == p) { // * may cause a performance problem!
-										// *//
+				if (p - (j - i) == p) { 
 					if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) < getDataShardsNum() + 2) {
 						shards[(p - (j - i))][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
 								+ (chunk * (p - 1))];
@@ -211,32 +249,16 @@ public class SecureEvenodd extends SecureCodec {
 			}
 		}
 	}
-
+		
 	private void initializationKeys(byte[][] shards, int shardSize){
 		Random random = getRandom();
 		shards[0] = new byte[shardSize];
 		random.nextBytes(shards[0]);
 		shards[shards.length-1] = new byte[shardSize];
 		random.nextBytes(shards[shards.length-1]);
-		for (int i = getDataShardsNum() + getSecrecyShardsNum(); i < shards.length; i++) {
+		/*for (int i = getDataShardsNum() + getSecrecyShardsNum(); i < shards.length; i++) {
 			shards[i] = new byte[shardSize];
-		}
-	}
-	
-	private void hideData(byte[][] shards, byte[][] data, int shardSize, int chunk){
-		for (int i = 0; i < getDataShardsNum(); i++) { // columns
-			for (int j = 0; j < p - 1 && (chunk * (p - 1) + j) < shardSize; j++) { // rows
-				shards[i + getSecrecyShardsNum()][j + chunk * (p - 1)] ^= data[i][j + chunk * (p - 1)];
-			}
-		}
-	}
-	
-	private void parityPropagate(byte[][] shards, int shardSize){
-		for (int i = 1; i < shards.length - 2; i++) {
-			for (int j = 0; j < shardSize; j++) {
-				shards[i][j] ^= shards[0][j];
-			}
-		}
+		}*/
 	}
 	
 	private byte[][] dataArrayInitializtion(int shardSize){
@@ -259,7 +281,7 @@ public class SecureEvenodd extends SecureCodec {
 	
 	private void case1ReEncode(byte[][] shards, int shardSize, int numberOfChunks){
 		for (int chunk = 0; chunk < numberOfChunks; chunk++) {
-			EVENODD(shardSize, shards, p, chunk);
+			EVENODD(shardSize, shards, p, chunk, getDataShardsNum());
 
 		}
 	}
@@ -474,15 +496,16 @@ public class SecureEvenodd extends SecureCodec {
 			encryptionTable[i] = new byte[shardSize];
 		}
 		// first we copy the keys to the ecryption table
-		System.arraycopy(shards, 0, encryptionTable, 0, 1);
-		System.arraycopy(shards, 1, encryptionTable, 1, 1);
+		System.arraycopy(shards, 0, encryptionTable, 0, 2);
+		//System.arraycopy(shards, 1, encryptionTable, 1, 1);
 		// initating the ecryptionTable 
-		for (int i = 2; i < totalDisksNum - 1; i++) {
+		for (int i = 2; i < totalDisksNum-1; i++) {
 			encryptionTable[i] = new byte[shardSize];
 			for (int j = 0; j < shardSize; j++) {
 				encryptionTable[i][j] ^= encryptionTable[0][j];
 			}
 		}
+		encryptionTable[totalDisksNum-1]=new byte[shardSize];
 	}
 	
 	private void computeLastCol(byte[][] encryptionTable,int shardSize,
@@ -567,18 +590,294 @@ public class SecureEvenodd extends SecureCodec {
 		}
 	}
 	
-	public byte[][] decrypt(byte[][] shards, int shardSize, byte[][] data) {
+	public byte[][] decrypt(byte[][] shards2, int shardSize, byte[][] data) {
 		// stage 1 - Lets compute the encryption table from the keys
 		int totalDisksNum = getSize(); 
 		byte[][] encryptionTable = new byte[totalDisksNum][shardSize];
-		initiateEncryptionTable(encryptionTable, shards, shardSize, totalDisksNum);
-		int numberOfChunks = 1 + (shardSize / (p - 1)); 
+		initiateEncryptionTable(encryptionTable, shards2, shardSize, totalDisksNum);
+		int numberOfChunks = 1 + (shardSize / (p - 1));
 		for (int chunk = 0; chunk < numberOfChunks; chunk++) {
 			computeLastCol(encryptionTable, shardSize, totalDisksNum, chunk);
 			EVENODDSTAR(shardSize, encryptionTable, p, chunk);
-			decryptMsg(shards, data, encryptionTable, chunk, shardSize);
+			decryptMsg(shards2, data, encryptionTable, chunk, shardSize);
 		}
 		/* end of decrypt */
 		return data;
 	}
+	
+	public static enum CodingLoop {
+		CHUNK_ROW_COLUMN {
+			@Override
+			void encode(int shardSize, byte[][] shards, int p, int numberOfChunks, byte[][] data, int dataShardsNum) {
+				for (int chunk = 0; chunk < numberOfChunks; chunk++){
+					for (int i = 0; i < p - 1; i++) {
+						for (int j = 0; j < p - 1 && (chunk * (p - 1) + j) < shardSize; j++) {
+							if(i<shards.length-2 && i>0){
+								// parity propagate 
+								shards[i][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+								if(i==p-2 && p-1<dataShardsNum+2){ // TODO: // is the && valid?
+									shards[p-1][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+								}
+							}
+							// mainDigaonalofEvenOdd*
+							if ((chunk * (p - 1) + i) < shardSize && (p - (j + 1)) < dataShardsNum + 2) {
+								shards[p - (j + 1)][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i + (chunk * (p - 1))];
+							}
+							// the other diagonal of EVENODD* //
+							if (p - (j - i) == p) { 
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) < dataShardsNum + 2) {
+									shards[(p - (j - i))][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+											+ (chunk * (p - 1))];
+								}
+							} else {
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) % p < dataShardsNum + 2) {
+									shards[(p - (j - i)) % p][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+											+ (chunk * (p - 1))];
+								}
+							}
+							/* data hide */ 
+							if(i<dataShardsNum+2 && i-2>-1){
+								shards[i][j + chunk * (p - 1)] ^= data[i-2][j + chunk * (p - 1)];
+								if(i==p-2 && p-1<dataShardsNum+2){
+									shards[p-1][j + chunk * (p - 1)] ^= data[p-3][j + chunk * (p - 1)];
+								}
+							}
+						}
+					}
+					EVENODD(shardSize, shards, p, chunk, dataShardsNum);
+				}				
+			}
+		},
+		CHUNK_COLUMN_ROW {
+			@Override
+			void encode(int shardSize, byte[][] shards, int p, int numberOfChunks, byte[][] data, int dataShardsNum) {
+				for (int chunk = 0; chunk < numberOfChunks; chunk++){
+					for (int j = 0; j < p - 1 && (chunk * (p - 1) + j) < shardSize; j++) {
+						for (int i = 0; i < p - 1; i++) {
+							if(i<shards.length-2 && i>0){
+								// parity propagate 
+								shards[i][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+								if(i==p-2 && p-1<dataShardsNum+2){ // TODO: // is the && valid?
+									shards[p-1][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+								}
+							}
+							// mainDigaonalofEvenOdd*
+							if ((chunk * (p - 1) + i) < shardSize && (p - (j + 1)) < dataShardsNum + 2) {
+								shards[p - (j + 1)][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i + (chunk * (p - 1))];
+							}
+							// the other diagonal of EVENODD* //
+							if (p - (j - i) == p) { 
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) < dataShardsNum + 2) {
+									shards[(p - (j - i))][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+											+ (chunk * (p - 1))];
+								}
+							} else {
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) % p < dataShardsNum + 2) {
+									shards[(p - (j - i)) % p][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+											+ (chunk * (p - 1))];
+								}
+							}
+							/* data hide */ 
+							if(i<dataShardsNum+2 && i-2>-1){
+								shards[i][j + chunk * (p - 1)] ^= data[i-2][j + chunk * (p - 1)];
+								if(i==p-2 && p-1<dataShardsNum+2){
+									shards[p-1][j + chunk * (p - 1)] ^= data[p-3][j + chunk * (p - 1)];
+								}
+							}
+						}
+					}
+					EVENODD(shardSize, shards, p, chunk, dataShardsNum);
+				}				
+			}
+		},
+		COLUMN_CHUNK_ROW {
+			@Override
+			void encode(int shardSize, byte[][] shards, int p, int numberOfChunks, byte[][] data, int dataShardsNum) {
+				// TODO Auto-generated method stub
+				for (int j = 0; j < p - 1 ; j++) {
+					for (int chunk = 0; chunk < numberOfChunks; chunk++){
+						for (int i = 0; i < p - 1; i++) {
+							if((chunk * (p - 1) + j) < shardSize){
+								if(i<shards.length-2 && i>0){
+									// parity propagate 
+									shards[i][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){ // TODO: // is the && valid?
+										shards[p-1][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									}
+								}
+								// mainDigaonalofEvenOdd*
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j + 1)) < dataShardsNum + 2) {
+									shards[p - (j + 1)][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i + (chunk * (p - 1))];
+								}
+								// the other diagonal of EVENODD* //
+								if (p - (j - i) == p) { 
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) < dataShardsNum + 2) {
+										shards[(p - (j - i))][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								} else {
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) % p < dataShardsNum + 2) {
+										shards[(p - (j - i)) % p][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								}
+								/* data hide */ 
+								if(i<dataShardsNum+2 && i-2>-1){
+									shards[i][j + chunk * (p - 1)] ^= data[i-2][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){
+										shards[p-1][j + chunk * (p - 1)] ^= data[p-3][j + chunk * (p - 1)];
+									}
+								}
+							}
+						}
+					}
+				}
+				for (int chunk = 0; chunk < numberOfChunks; chunk++){
+					EVENODD(shardSize, shards, p, chunk, dataShardsNum);
+				}
+			}				
+		},
+		COLUMN_ROW_CHUNK {
+			@Override
+			void encode(int shardSize, byte[][] shards, int p, int numberOfChunks, byte[][] data, int dataShardsNum) {
+				// TODO Auto-generated method stub
+				for (int j = 0; j < p - 1 ; j++) {
+					for (int i = 0; i < p - 1; i++) {
+						for (int chunk = 0; chunk < numberOfChunks; chunk++){
+							if((chunk * (p - 1) + j) < shardSize){
+								if(i<shards.length-2 && i>0){
+									// parity propagate 
+									shards[i][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){ // TODO: // is the && valid?
+										shards[p-1][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									}
+								}
+								// mainDigaonalofEvenOdd*
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j + 1)) < dataShardsNum + 2) {
+									shards[p - (j + 1)][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i + (chunk * (p - 1))];
+								}
+								// the other diagonal of EVENODD* //
+								if (p - (j - i) == p) { 
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) < dataShardsNum + 2) {
+										shards[(p - (j - i))][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								} else {
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) % p < dataShardsNum + 2) {
+										shards[(p - (j - i)) % p][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								}
+								/* data hide */ 
+								if(i<dataShardsNum+2 && i-2>-1){
+									shards[i][j + chunk * (p - 1)] ^= data[i-2][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){
+										shards[p-1][j + chunk * (p - 1)] ^= data[p-3][j + chunk * (p - 1)];
+									}
+								}
+							}
+						}
+					}
+				}
+				for(int chunk = 0; chunk < numberOfChunks; chunk++){
+					EVENODD(shardSize, shards, p, chunk, dataShardsNum);
+				}				
+			}
+		},
+		ROW_COLUMN_CHUNK {
+			@Override
+			void encode(int shardSize, byte[][] shards, int p, int numberOfChunks, byte[][] data, int dataShardsNum) {
+				// TODO Auto-generated method stub
+				for (int i = 0; i < p - 1; i++) {
+					for (int j = 0; j < p - 1 /*&& */; j++) {
+						for (int chunk = 0; chunk < numberOfChunks; chunk++){
+							if((chunk * (p - 1) + j) < shardSize){
+								if(i<shards.length-2 && i>0){
+									// parity propagate 
+									shards[i][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){ // TODO: // is the && valid?
+										shards[p-1][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									}
+								}
+								// mainDigaonalofEvenOdd*
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j + 1)) < dataShardsNum + 2) {
+									shards[p - (j + 1)][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i + (chunk * (p - 1))];
+								}
+								// the other diagonal of EVENODD* //
+								if (p - (j - i) == p) { 
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) < dataShardsNum + 2) {
+										shards[(p - (j - i))][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								} else {
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) % p < dataShardsNum + 2) {
+										shards[(p - (j - i)) % p][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								}
+								/* data hide */ 
+								if(i<dataShardsNum+2 && i-2>-1){
+									shards[i][j + chunk * (p - 1)] ^= data[i-2][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){
+										shards[p-1][j + chunk * (p - 1)] ^= data[p-3][j + chunk * (p - 1)];
+									}
+								}
+							}
+						}
+					}
+				}
+				for(int chunk = 0; chunk < numberOfChunks; chunk++){
+					EVENODD(shardSize, shards, p, chunk, dataShardsNum);
+				}				
+			}
+		},
+		ROW_CHUNK_COLUMN {
+			@Override
+			void encode(int shardSize, byte[][] shards, int p, int numberOfChunks, byte[][] data, int dataShardsNum) {
+				// TODO Auto-generated method stub
+				byte[] mainDiagonal= new byte[numberOfChunks];
+				for (int i = 0; i < p - 1; i++) {
+					for (int chunk = 0; chunk < numberOfChunks; chunk++){
+						for (int j = 0; j < p - 1 /*&& */; j++) {
+							if((chunk * (p - 1) + j) < shardSize){
+								if(i<shards.length-2 && i>0){
+									// parity propagate 
+									shards[i][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){ // TODO: // is the && valid?
+										shards[p-1][j + chunk * (p - 1)] ^= shards[0][j + chunk * (p - 1)];
+									}
+								}
+								// mainDigaonalofEvenOdd*
+								if ((chunk * (p - 1) + i) < shardSize && (p - (j + 1)) < dataShardsNum + 2) {
+									shards[p - (j + 1)][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i + (chunk * (p - 1))];
+								}
+								// the other diagonal of EVENODD* //
+								if (p - (j - i) == p) { 
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) < dataShardsNum + 2) {
+										shards[(p - (j - i))][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								} else {
+									if ((chunk * (p - 1) + i) < shardSize && (p - (j - i)) % p < dataShardsNum + 2) {
+										shards[(p - (j - i)) % p][j + (chunk * (p - 1))] ^= shards[shards.length - 1][i
+												+ (chunk * (p - 1))];
+									}
+								}
+								/* data hide */ 
+								if(i<dataShardsNum+2 && i-2>-1){
+									shards[i][j + chunk * (p - 1)] ^= data[i-2][j + chunk * (p - 1)];
+									if(i==p-2 && p-1<dataShardsNum+2){
+										shards[p-1][j + chunk * (p - 1)] ^= data[p-3][j + chunk * (p - 1)];
+									}
+								}
+							}
+						}
+						EVENODD(shardSize, shards, p, chunk, dataShardsNum);
+					}
+				}				
+			}
+		};
+		abstract void encode(int shardSize, byte[][] shards, int p, int numberOfChunks, byte[][] data, int dataShardsNum);
+	}
+
 }
