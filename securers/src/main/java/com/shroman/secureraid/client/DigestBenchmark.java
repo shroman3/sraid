@@ -3,12 +3,9 @@ package com.shroman.secureraid.client;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.Provider;
-import java.security.Provider.Service;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 

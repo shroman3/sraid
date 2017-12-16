@@ -41,8 +41,12 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 //		String configName = "C:/users/shroman/cfg/pkcs11.cfg";
 //		Security.addProvider(new sun.security.pkcs10.SunPKCS11(configName));
 		Security.addProvider(new BouncyCastleProvider());
-    	int threads = Integer.parseInt(args[0]);
-    	BUFFER_SIZE = Integer.parseInt(args[1])*1024;
+		int threads = 2;
+		BUFFER_SIZE = 4*1024;
+		if (args.length > 0) {			
+			threads = Integer.parseInt(args[0]);
+			BUFFER_SIZE = Integer.parseInt(args[1])*1024;
+		}
 		(new CiphersBenchmark(threads)).run();
 	}
 	
@@ -114,9 +118,9 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 		private IvParameterSpec ivParameterSpec;
 		private SecretKeySpec secretKeySpec;
 
-		AES(byte[] key, byte[] iv, String provider, String mode) {
+		AES(byte[] key, byte[] iv, String provider, String mode, String padding) {
 			try {
-				cipher = Cipher.getInstance("AES/" + mode + "/PKCS5Padding", provider);
+				cipher = Cipher.getInstance("AES/" + mode + "/" + padding, provider);
 			} catch (NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
 				e.printStackTrace();
 			}
@@ -273,37 +277,49 @@ public class CiphersBenchmark extends BasicBenchmark<cipher> {
 //				return new AES(key, null, "BC", "ECB");
 //			}
 //		},
-//		AESJ_CBC {
-//			@Override
-//			Encryptor getEncryptor(byte[] key, byte[] iv) {
-//				return new AES(key, iv, "SunJCE", "CBC");
-//			}
-//		},
+		AESJ_CBC {
+			@Override
+			Encryptor getEncryptor(byte[] key, byte[] iv) {
+				return new AES(key, iv, "SunJCE", "CBC", "PKCS5Padding");
+			}
+		},
 //		AESBC_CBC {
 //			@Override
 //			Encryptor getEncryptor(byte[] key, byte[] iv) {
-//				return new AES(key, iv, "BC", "CBC");
+//				return new AES(key, iv, "BC", "CBC", "PKCS5Padding");
+//			}
+//		},
+//		AESJ_CTR_P {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, iv, "SunJCE", "CTR", "PKCS5Padding");
+//			}
+//		},
+//		AESBC_CTR_P {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				return new AES(key, iv, "BC", "CTR", "PKCS5Padding");
 //			}
 //		},
 //		AESJ_CTR {
 //			@Override
 //			Encryptor getEncryptor(byte[] key, byte[] iv) {
-//				return new AES(key, iv, "SunJCE", "CTR");
+//				return new AES(key, iv, "SunJCE", "CTR", "NoPadding");
 //			}
 //		},
 //		AESBC_CTR {
 //			@Override
 //			Encryptor getEncryptor(byte[] key, byte[] iv) {
-//				return new AES(key, iv, "BC", "CTR");
+//				return new AES(key, iv, "BC", "CTR", "NoPadding");
 //			}
 //		},
-		CHACHA20 {
-			@Override
-			Encryptor getEncryptor(byte[] key, byte[] iv) {
-				CipherParameters cipherParameters = new ParametersWithIV(new KeyParameter(key, 0, 16), iv, 0, 8);
-				return new StreamEncryptor(cipherParameters, new ChaChaEngine());
-			}
-		},
+//		CHACHA20 {
+//			@Override
+//			Encryptor getEncryptor(byte[] key, byte[] iv) {
+//				CipherParameters cipherParameters = new ParametersWithIV(new KeyParameter(key, 0, 16), iv, 0, 8);
+//				return new StreamEncryptor(cipherParameters, new ChaChaEngine());
+//			}
+//		},
 //		SALSA20 {
 //			@Override
 //			Encryptor getEncryptor(byte[] key, byte[] iv) {

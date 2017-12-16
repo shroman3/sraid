@@ -4,8 +4,6 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.Provider;
-import java.security.Provider.Service;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
@@ -45,14 +43,14 @@ public class EncryptionBenchmark {
 
 	public static void main(String[] args) {
 		Security.addProvider(new BouncyCastleProvider());
-		for(Provider provider : Security.getProviders()) {
-			System.out.println(provider.getName());
-			for (Service service : provider.getServices()) {
-				if (service.getType().equals("Cipher")) {
-					System.out.println("\t-" + service.getType() + "\t-" + service.getAlgorithm());
-				}
-			}
-		}
+//		for(Provider provider : Security.getProviders()) {
+//			System.out.println(provider.getName());
+//			for (Service service : provider.getServices()) {
+//				if (service.getType().equals("Cipher")) {
+//					System.out.println("\t-" + service.getType() + "\t-" + service.getAlgorithm());
+//				}
+//			}
+//		}
 		(new EncryptionBenchmark()).run();
 	}
 

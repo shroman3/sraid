@@ -19,8 +19,6 @@ import com.shroman.secureraid.codec.PackedSecretSharingCodecRA;
 import com.shroman.secureraid.codec.SecretSharingCodec;
 import com.shroman.secureraid.codec.SecureBackblazeRS;
 import com.shroman.secureraid.codec.SecureBackblazeRSRA;
-import com.shroman.secureraid.codec.SecureEvenodd;
-import com.shroman.secureraid.codec.SecureEvenoddRA;
 import com.shroman.secureraid.utils.Utils;
 
 public enum CodecType {
@@ -194,22 +192,68 @@ public enum CodecType {
 //			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
 //		}
 //	},
-	SECURE_EVENODD("EVENODD", "EO") {
-		@Override
-		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
-			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
-			builder.setDataShardsNum(k).setParityShardsNum(r);
-			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
-		}
-	},
-	SECURE_EVENODD_RA("EVENODD_RA", "EO_RA") {
-		@Override
-		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
-			SecureEvenoddRA.Builder builder = new SecureEvenoddRA.Builder();
-			builder.setDataShardsNum(k).setParityShardsNum(r);
-			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
-		}
-	},
+//	SECURE_EVENODD_1("EVENODD", "EO1") {
+//		@Override
+//		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+//			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+//			builder.setCodingLoop(CodingLoop.CHUNK_COLUMN_ROW);
+//			builder.setDataShardsNum(k).setParityShardsNum(r);
+//			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+//		}
+//	},
+//	SECURE_EVENODD_2("EVENODD", "EO2") {
+//		@Override
+//		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+//			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+//			builder.setCodingLoop(CodingLoop.CHUNK_ROW_COLUMN);
+//			builder.setDataShardsNum(k).setParityShardsNum(r);
+//			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+//		}
+//	},
+//	SECURE_EVENODD_3("EVENODD", "EO3") {
+//		@Override
+//		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+//			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+//			builder.setCodingLoop(CodingLoop.COLUMN_CHUNK_ROW);
+//			builder.setDataShardsNum(k).setParityShardsNum(r);
+//			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+//		}
+//	},
+//	SECURE_EVENODD_4("EVENODD", "EO4") {
+//		@Override
+//		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+//			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+//			builder.setCodingLoop(CodingLoop.COLUMN_ROW_CHUNK);
+//			builder.setDataShardsNum(k).setParityShardsNum(r);
+//			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+//		}
+//	},
+//	SECURE_EVENODD_5("EVENODD", "EO5") {
+//		@Override
+//		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+//			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+//			builder.setCodingLoop(CodingLoop.ROW_CHUNK_COLUMN);
+//			builder.setDataShardsNum(k).setParityShardsNum(r);
+//			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+//		}
+//	},
+//	SECURE_EVENODD_6("EVENODD", "EO6") {
+//		@Override
+//		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+//			SecureEvenodd.Builder builder = new SecureEvenodd.Builder();
+//			builder.setCodingLoop(CodingLoop.ROW_COLUMN_CHUNK);
+//			builder.setDataShardsNum(k).setParityShardsNum(r);
+//			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+//		}
+//	},
+//	SECURE_EVENODD_RA("EVENODD_RA", "EO_RA") {
+//		@Override
+//		Codec buildCodecFromArgs(int k, int r, int z, String randomName) {
+//			SecureEvenoddRA.Builder builder = new SecureEvenoddRA.Builder();
+//			builder.setDataShardsNum(k).setParityShardsNum(r);
+//			return builder.setSecrecyShardsNum(z).setRandom(RandomType.getRandomType(randomName)).build();
+//		}
+//	},
 //	AES("AES") {
 //	@Override
 //	Codec buildCodecFromArgs(int k, int r, int z, String randomName) {

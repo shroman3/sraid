@@ -14,7 +14,10 @@ public class RandomBenchmark extends BasicBenchmark<random> {
 
 	public static void main(String[] args) {
 		Security.addProvider(new BouncyCastleProvider());
-    	int threads = Integer.parseInt(args[0]);
+		int threads = 2;
+		if (args.length > 0) {			
+			threads = Integer.parseInt(args[0]);
+		}
 		(new RandomBenchmark(threads)).run();
 	}
 	
