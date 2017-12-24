@@ -14,6 +14,7 @@ import com.shroman.secureraid.codec.SecureCodec;
 import com.shroman.secureraid.utils.Utils;
 
 import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
+import net.nullschool.util.DigitalRandom;
 
 public enum RandomType implements SecureCodec.RandomGetter {
 	AES("AESJ") {
@@ -30,6 +31,12 @@ public enum RandomType implements SecureCodec.RandomGetter {
 				System.out.println("Problem creating AESPRNG");
 				return new SecureRandom();
 			}
+		}
+	},
+	INTEL("INTEL","RDRAND") {
+		@Override
+		public Random getRandom() {
+			return new DigitalRandom(); 
 		}
 	},
 	MY_AES("AES") {

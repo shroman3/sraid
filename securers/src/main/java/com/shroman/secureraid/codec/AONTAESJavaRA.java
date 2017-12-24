@@ -57,7 +57,7 @@ public class AONTAESJavaRA extends AONTAESJava {
 		SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
 
 		try {
-			Cipher cipherDecrypt = Cipher.getInstance("AES/CTR/PKCS5Padding", getProvider());
+			Cipher cipherDecrypt = Cipher.getInstance("AES/CBC/PKCS5Padding", getProvider());
 			byte[] iv = new byte[AESJavaCodec.IV_SIZE];
 			byte[][] output = new byte[getDataShardsNum()][];
 

@@ -95,7 +95,7 @@ public class AONTAESJava extends CryptoCodecConstantKey {
 		SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
 
 		try {
-			Cipher cipher = Cipher.getInstance("AES/CTR/PKCS5Padding", provider);
+			Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
 			cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
 			int maximumOutputLength = cipher.getOutputSize(shardSize);
 
@@ -129,7 +129,7 @@ public class AONTAESJava extends CryptoCodecConstantKey {
 		SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
 
 		try {
-			Cipher cipherDecrypt = Cipher.getInstance("AES/CTR/PKCS5Padding", provider);
+			Cipher cipherDecrypt = Cipher.getInstance("AES/CBC/PKCS5Padding", provider);
 			byte[] iv = new byte[AESJavaCodec.IV_SIZE];
 			byte[][] output = new byte[getDataShardsNum()][];
 

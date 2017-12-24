@@ -1,8 +1,5 @@
 package com.shroman.secureraid.client;
 
-import java.security.Provider;
-import java.security.Provider.Service;
-import java.security.SecureRandom;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,22 +23,18 @@ public class RandomTypeBenchmark {
 //		for (String suite : ((SSLSocketFactory)SSLSocketFactory.getDefault()).getDefaultCipherSuites()) {
 //			System.out.println(suite);
 //		}
+		//    	for (Provider provider : Security.getProviders()) {
+//			System.out.println(provider.getName() + ":");
+//			for (Service service : provider.getServices()) {				
+//				if (service.getType().equals("SecureRandom")) {
+//					System.out.println("\t-" + service.getAlgorithm());
+//				}
+//			}
+//		}
         (new RandomTypeBenchmark()).run();
     }
 
     public void run() {
-    	for (Provider provider : Security.getProviders()) {
-			System.out.println(provider.getName() + ":");
-			for (Service service : provider.getServices()) {				
-				if (service.getType().equals("SecureRandom")) {
-					System.out.println("\t-" + service.getAlgorithm());
-				}
-			}
-		}
-    	SecureRandom secureRandom = new SecureRandom();
-		System.out.println("SecureRandom=" + secureRandom.getAlgorithm());
-
-    	
         System.out.println("preparing...");
         final byte [] tempBuffer = new byte [BUFFER_SIZE];
 
